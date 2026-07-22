@@ -1,0 +1,76 @@
+# 業務モデル テンプレート（成果物中心 / PReP 流）
+# 使い方: fde/draft/<client-slug>/model.yaml にコピーして埋める。
+# 記述規律・検証ルール(R1-R11)は docs/revision-v4/13-process-intake-doctrine.md §5-6 を参照。
+# ⚠️ 実データを埋めたファイルはリポジトリにコミットしない（draft/ は gitignore 済み）。
+
+meta:
+  client: "" # org slug
+  business_scope: "" # 例: 中途採用
+  version: 1 # ヒアリングのループごとに +1
+  updated: "" # YYYY-MM-DD
+  status: as_is # as_is | validated | ai_fit_done | tobe_agreed
+
+goals: # 業務ゴール（経営視点）。final product と対応必須 (R5)
+  - id: G1
+    statement: ""
+    kpi: ""
+    source: 経営 # 経営 | 現場
+    linked_products: [] # この goal に連鎖する final product の id (R5 の判定対象)
+
+external_processes: # 業務スコープの外周
+  - id: XP1
+    name: ""
+    direction: in # in = 入力をくれる側 / out = 最終成果物の受け手
+
+actors:
+  - id: A1
+    name: ""
+    type: human # human | system | external
+    duty: "" # 責務（建前）
+    insight: "" # 本音。human は必聴。空欄なら R9 が質問化する
+
+products:
+  - id: P1
+    name: ""
+    state: "" # 状態が違えば別 product として起こす (R7)
+    kind: intermediate # intermediate | milestone | final
+    params: [] # ヒアリングで実物から書き写す
+    pii: false # true なら保持・スクラブ方針必須 (R8)
+    retention_policy: "" # pii=true のとき必須 (R8)。10-data-retention.md 準拠の保持・スクラブ方針
+    sot: spreadsheet # spreadsheet | saas | paper | tribal | none
+    owner: A1
+    confidence: high # high | low。low は R10 が質問化する
+
+processes:
+  - id: PR1
+    name: ""
+    actor: A1 # 必須 (R4)
+    inputs: [] # 入力関係 (product id)
+    sync: [] # 同期関係（揃うまで待つ束ね）
+    outputs: [] # 空の process は存在してはならない
+    trigger: { type: manual, detail: "" } # webhook | email | cron | manual | event
+    frequency: ""
+    volume_per_month: 0
+    rules: [] # 判断基準。actor の insight 由来の暗黙ルールもここに昇格
+    confidence: high
+
+# ---- Phase 4 で追記 ----
+ai_fit: []
+# - process: PR1
+#   bfc_id: ""              # BFC マッピング（LLM 裁量はここだけ）
+#   bfc_confidence: high
+#   deployment: connector   # connector | custom_tool | rpa_cdp | sandbox | human
+#   risk_tier: confirm      # BFC lookup で決定論解決。迷ったら confirm
+#   prerequisites: []       # SoT 整備タスク等
+#   note: ""
+
+# ---- Phase 5 で追記 ----
+tobe: {}
+# persona: { persona_id: "", mode: orchestrator, triggers: [] }
+# skills:
+#   - skill_id: ""
+#     covers: [PR1]
+#     milestone: P3         # この skill が生むマイルストン成果物
+# hitl_gates: []            # milestone product = 承認ポイント
+# human_tasks: []           # { process: PR9, department: "" }
+# bfc_mapping: []           # { final_product: P12, bfc_unit: "", monthly_volume: 0 }

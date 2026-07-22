@@ -1,0 +1,101 @@
+name: Mirror accepted proposals to private tracker
+
+# この公開 repo は「提案窓口」。メンテナが Issue に `accepted` ラベルを付けると、
+# 非公開の社内トラッカー（MIRROR_TARGET で指定）にミラー Issue を自動起票し、
+# 元 Issue にバックリンクを残して `mirrored` ラベルを付ける（片方向）。
+#
+# 必要なシークレット:
+#   - MIRROR_TOKEN  : ミラー先 repo に issues:write を持つ Fine-grained PAT / GitHub App トークン
+#   - MIRROR_TARGET : ミラー先 repo を "owner/repo" 形式で指定
+#
+# ⚠️ ミラー先は非公開リポジトリなので、その名前・URL・Issue 番号を**公開面に出さない**:
+#   - ミラー先はワークフローに直書きせずシークレット化する（このファイルは公開される）
+#   - 公開 Issue へのコメントにミラー先 URL を貼らない（Issue 番号から社内の規模も推測できる）
+#   - Actions のログにも出さない（public repo の実行ログは誰でも閲覧できる）
+#
+# いずれかのシークレットが未設定の間は安全にスキップ（何もしない）。
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write # このリポジトリ側でコメント / ラベル付けするため
+
+jobs:
+  mirror:
+    # accepted ラベルが付いたときだけ、かつ二重ミラー防止
+    if: >-
+      github.event.label.name == 'accepted' &&
+      !contains(github.event.issue.labels.*.name, 'mirrored')
+    runs-on: ubuntu-latest
+    env:
+      MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
+      # ミラー先 "owner/repo"。公開ファイルに非公開 repo 名を書かないためシークレット化。
+      MIRROR_TARGET: ${{ secrets.MIRROR_TARGET }}
+    steps:
+      - name: Guard — シークレット未設定ならスキップ
+        id: guard
+        run: |
+          if [ -z "${MIRROR_TOKEN}" ] || [ -z "${MIRROR_TARGET}" ]; then
+            echo "MIRROR_TOKEN / MIRROR_TARGET が未設定のためスキップします。"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 社内トラッカーへミラー Issue を作成
+        id: create
+        if: steps.guard.outputs.ready == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.MIRROR_TOKEN }}
+          script: |
+            const src = context.payload.issue;
+            const [owner, repo] = (process.env.MIRROR_TARGET || '').split('/');
+            if (!owner || !repo) {
+              core.setFailed('MIRROR_TARGET は "owner/repo" 形式で設定してください');
+              return;
+            }
+            const body = [
+              `> 🔁 公開提案窓口からの取り込み: ${src.html_url}`,
+              `> 提案者: @${src.user.login} ／ 元 Issue: #${src.number}`,
+              '',
+              '---',
+              '',
+              src.body || '(本文なし)',
+            ].join('\n');
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title: `[proposal] ${src.title}`,
+              body,
+              labels: ['from-mcp-proposal'],
+            });
+            // ⚠️ public repo の Actions ログは誰でも読めるため、
+            //    ミラー先の URL / Issue 番号 / repo 名を出力しない。
+            core.info('mirror issue created');
+
+      - name: 公開 Issue に受領コメント + mirrored ラベル
+        if: steps.guard.outputs.ready == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const n = context.payload.issue.number;
+            // ⚠️ ミラー先は非公開なので URL / Issue 番号を公開コメントに書かない
+            //    （番号から社内の Issue 規模まで推測できてしまうため）。
+            //    公開→非公開の対応付けは、非公開側 Issue 本文のバックリンクで辿れる。
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: n,
+              body: [
+                '✅ ご提案を受け付け、社内のトラッカーに取り込みました。',
+                '',
+                '以降の検討・実装状況は社内で管理するため、この Issue には反映されません。',
+                'ご提案ありがとうございました。',
+              ].join('\n'),
+            });
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: n,
+              labels: ['mirrored'],
+            });

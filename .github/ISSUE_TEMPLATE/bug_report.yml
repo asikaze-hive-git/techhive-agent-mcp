@@ -1,0 +1,48 @@
+name: 不具合報告 (Bug report)
+description: MCP エンドポイント・接続・ツール挙動の不具合を報告する
+labels: ["triage", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ご報告ありがとうございます。**秘密情報（トークン・APIキー・顧客名・個人情報）は貼らないでください。**
+        この repo は公開の提案窓口です。精査後、承認された内容のみ社内トラッカーに取り込みます。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 何が起きたか
+      description: 期待した挙動と実際の挙動。
+      placeholder: 例）tools/call で catalog_list を呼ぶと 500 が返る。期待は一覧 JSON。
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 再現手順
+      placeholder: |
+        1. claude mcp add ...
+        2. ...ツールを実行
+        3. エラー
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: クライアント / バージョン
+      placeholder: 例）Claude Code x.y / Claude Desktop
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: エラーメッセージ / ログ（秘密は伏せる）
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: no-secrets
+    attributes:
+      label: 確認
+      options:
+        - label: 秘密情報・個人情報を含めていないことを確認しました。
+          required: true

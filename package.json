@@ -1,0 +1,37 @@
+{
+  "name": "techhive-agent-mcp",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Public MCP server edge for TechHive Agents (FDE Agent MCP). Terminates the MCP protocol + OAuth, forwards tool execution to the private TechHive backend.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "typecheck": "tsc --noEmit",
+    "ci:local": "biome check . && rm -rf .next/types .next/dev/types && NODE_OPTIONS=--max-old-space-size=8192 tsc --noEmit && next build",
+    "generate:manifest": "node --experimental-strip-types scripts/generate-manifest.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@supabase/supabase-js": "^2.47.0",
+    "next": "^16.2.10",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.2",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5.6.0"
+  }
+}

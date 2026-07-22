@@ -1,0 +1,10 @@
+# FDE 用スキルは追跡対象に入れる（ルート .gitignore の .claude/ を解除。apps/ と同パターン）
+!.claude/
+.claude/settings.local.json
+
+# 生成物・クライアント実データ（ヒアリング素材・業務モデル・提案書・ペルソナ/スキル草案）は
+# すべて draft/ 配下に置き、コミットしない（無駄な差分を出さない）。
+# 正本はクライアント案件用 Drive（docs/revision-v4/13-process-intake-doctrine.md §4）。
+# ⚠️ git 非追跡だが Claude Code は draft/ 配下を参照してよい（fde/CLAUDE.md §6 参照）
+draft/*
+!draft/.gitkeep

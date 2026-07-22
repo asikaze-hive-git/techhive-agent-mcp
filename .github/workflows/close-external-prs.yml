@@ -1,0 +1,59 @@
+name: Close external pull requests
+
+# この repo は「提案窓口」であり、コード変更は社内で行う。
+# GitHub には PR 作成そのものを禁止する設定が無い（public repo は誰でも fork → PR できる）ため、
+# メンテナ以外からの PR は自動でお礼を述べてクローズし、Issue へ誘導する。
+#
+# ⚠️ セキュリティ: `pull_request_target` は base repo の権限で動くため、
+#    **PR のコードを絶対に checkout / 実行しない**（actions/checkout を足さないこと）。
+#    ここではコメントとクローズしか行わないので安全な使い方に収まっている。
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  close:
+    # OWNER / MEMBER / COLLABORATOR 以外（= 外部からの PR）だけを対象にする
+    if: >-
+      github.event.pull_request.author_association != 'OWNER' &&
+      github.event.pull_request.author_association != 'MEMBER' &&
+      github.event.pull_request.author_association != 'COLLABORATOR'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = [
+              `@${pr.user.login} さん、ご提案ありがとうございます 🙏`,
+              '',
+              'このリポジトリは **提案窓口** として運営しており、コードの変更は社内のトラッカーで実装しています。',
+              'そのため、いただいた Pull Request は自動でクローズさせていただきます（内容を否定するものではありません）。',
+              '',
+              '**ぜひ Issue でご提案ください。** 採用された提案は社内トラッカーに取り込まれ、実装されます:',
+              '',
+              '- 🐛 不具合報告 / 💡 ツール提案 / ❓ 接続の相談 → [Issue を作成](../../issues/new/choose)',
+              '- 運用ポリシー → [CONTRIBUTING.md](../../blob/main/CONTRIBUTING.md)',
+              '',
+              'PR の内容をそのまま Issue に転記していただければ、同じように精査します。',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body,
+            });
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              state: 'closed',
+            });
+
+            core.info(`closed external PR #${pr.number} from @${pr.user.login}`);

@@ -1,0 +1,47 @@
+# dependencies
+/node_modules
+.pnp
+.pnp.*
+
+# next
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# env (NEVER commit secrets)
+.env
+.env.*
+!.env.example
+
+# vercel
+.vercel
+
+# os / editor
+.DS_Store
+*.pem
+npm-debug.log*
+
+# ─────────────────────────────────────────────────────────────
+# FDE 作業フォルダの機密ガード。
+# fde/draft/ には実クライアントの機密・PII が入るため git に絶対入れない。
+# fde/.gitignore（draft/* + !draft/.gitkeep）と同一意図。追跡は .gitkeep のみ。
+# ─────────────────────────────────────────────────────────────
+fde/draft/*
+!fde/draft/.gitkeep
+
+# 機密パターン（拡張子・SA鍵・スプレッドシート）
+*.sa.json
+*.xlsx
+*.xls
+sheets-worker.sa.json
+gmail-push-notification.sa.json
+
+# ─────────────────────────────────────────────────────────────
+# 作業用の参照資料（追跡しない）
+# ─────────────────────────────────────────────────────────────
+fde/.claude/skills/author-skill/golden/
+fde/.claude/skills/techhive-skill-evaluator/cases/
+
+# env 雛形も追跡しない（値は各自で用意する）
+.env.example

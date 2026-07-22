@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 接続・セットアップの手順
+    url: https://github.com/asikaze-hive-git/techhive-agent-mcp/blob/main/README.md
+    about: まず README の接続手順（claude mcp add ...）を確認してください。
+  - name: 運用ポリシー（提案の取り扱い）
+    url: https://github.com/asikaze-hive-git/techhive-agent-mcp/blob/main/CONTRIBUTING.md
+    about: この repo は提案窓口です。承認された提案のみ社内トラッカーに取り込まれます。

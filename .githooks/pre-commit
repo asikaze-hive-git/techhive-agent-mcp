@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#
+# 機密・PII のコミットを物理的に止めるローカルガード。
+# `pnpm install` の prepare で `git config core.hooksPath .githooks` が設定され有効化される。
+# .gitignore を貫通する `git add -f` 等に対する二重の防壁。
+#
+set -euo pipefail
+
+staged=$(git diff --cached --name-only || true)
+[ -z "$staged" ] && exit 0
+
+# 1) fde/draft/ 配下（.gitkeep 以外）= 実クライアントの機密・PII
+bad_draft=$(printf '%s\n' "$staged" | grep '^fde/draft/' | grep -v '^fde/draft/\.gitkeep$' || true)
+
+# 2) 秘密 / 機微ファイルのパターン（SA 鍵・.env・スプレッドシート）。
+#    ただし .env.example / .sample / .template は値を含まない雛形なので追跡を許可する。
+bad_secret=$(printf '%s\n' "$staged" \
+  | grep -E '(\.sa\.json$|(^|/)\.env($|\.)|\.xlsx?$)' \
+  | grep -vE '(^|/)\.env\.(example|sample|template)$' || true)
+
+if [ -n "${bad_draft}${bad_secret}" ]; then
+  echo "✋ コミットを中止しました。以下は機密/PII の可能性があり、この repo では追跡しません:"
+  [ -n "$bad_draft" ]  && printf '  [draft]  %s\n' $bad_draft
+  [ -n "$bad_secret" ] && printf '  [secret] %s\n' $bad_secret
+  echo "→ 本当に必要な場合のみ .gitignore/フックのパターンを見直してください（git add -f は避ける）。"
+  exit 1
+fi
+
+exit 0

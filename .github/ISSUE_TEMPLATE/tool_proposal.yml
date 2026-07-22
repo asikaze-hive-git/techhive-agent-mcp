@@ -1,0 +1,50 @@
+name: ツール提案 / 改修要望 (Tool proposal)
+description: 新しい MCP ツール、既存ツールの改修、コネクタ追加などを提案する
+labels: ["triage", "proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提案ありがとうございます。この repo は**提案窓口**です。メンテナが精査し、
+        採用（`accepted` ラベル）された提案は社内トラッカーに自動で取り込まれ、そこで実装されます。
+        **秘密情報・顧客名・個人情報は書かないでください。**
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 種別
+      options:
+        - 新しいツール
+        - 既存ツールの改修
+        - 新しいコネクタ / 外部連携
+        - ドキュメント / DX 改善
+        - その他
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 何が生まれてほしいか（成果物ベース）
+      description: 「どんなタスク」ではなく「何が生まれて、誰が何に使うか」で書いてください。
+      placeholder: 例）応募者一覧を CSV でエクスポートするツール。FDE が案件初期の母集団把握に使う。
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: なぜ必要か / 現状の困りごと
+    validations:
+      required: true
+  - type: textarea
+    id: sketch
+    attributes:
+      label: 入出力のイメージ（任意）
+      description: 入力パラメータ・期待する戻り値など。
+    validations:
+      required: false
+  - type: checkboxes
+    id: no-secrets
+    attributes:
+      label: 確認
+      options:
+        - label: 秘密情報・個人情報を含めていないことを確認しました。
+          required: true

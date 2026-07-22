@@ -1,0 +1,2316 @@
+{
+  "generatedAt": "2026-07-22T06:55:57.906Z",
+  "sourceVersion": "0.1.0",
+  "tools": [
+    {
+      "name": "list_my_orgs",
+      "description": "認証中のアカウントが所属する組織と権限ロールを一覧する。他ツールに渡す org_id を確認したいときに使う。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "catalog_list",
+      "description": "ペルソナ作成に使える既製ブロック（接続済みツール / 部署 / 利用可能スキル / 課金カテゴリ BFC / 許可モデル / 既存ペルソナ）を org 単位で一覧する。新しいコネクタやアダプタは作れないため、必ずここから選ぶ。BFC は全件を bfc_index（bfc_id + l3名）で俯瞰でき、詳細（手順 l4 込み）は bfc_search で絞り込む。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "bfc_search": {
+            "description": "BFC カタログを bfc_id / L3名 / L4名 の部分一致で絞り込むキーワード",
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "bfc_search",
+      "description": "業務ステップの記述（自然文）から BFC 候補分類をスコア順に返す。FDE 上流工程（fde-process-intake Phase 4）の bfc_id マッピング用。返る tier は S/M/L/XL の規模ラベル（org 個別 override 解決済み）で Risk Tier ではない。tha_per_unit も override 解決済みの実効値。判定はスコアを見て人間/Claude が行い、confidence=low の候補は必ず確認質問に回す。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "query": {
+            "type": "string",
+            "minLength": 2,
+            "description": "業務ステップの記述。例: '応募者への面接日程調整メールを送る' '月次の請求書を発行して送付する'"
+          },
+          "top_n": {
+            "description": "返す候補数（既定 8）",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": ["query"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "persona_get",
+      "description": "既存ペルソナの全構成（コア設定 + config/triggers + 紐付くスキル/ツール/部署/cron）を束として取得する。新規作成時の雛形（clone）や編集の起点に使う。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["persona_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "bundle_validate",
+      "description": "既存ペルソナの構成が整合しているか検証する（blueprint と ペルソナのスキル構成 の一致、trigger の有無、未 push スキル、未リンク接続、blueprint スキルの未知ツール参照、cron トリガーと cron 設定 の整合など）。エラー/警告のレポートを返す。デプロイ前の健全性チェックに使う。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["persona_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "browser_placement_register",
+      "description": "有人監督ブラウザの placement（ブラウザ配置）を登録する。tool_connection を 監督ブラウザホスト 上のログイン済み warm ブラウザ（port）に紐付ける。cdp_target は caller 指定不可でサーバが host config + port から組み立て、他 org の slot 横取りは拒否する。port は 監督ブラウザホスト の初回ログイン（人間のプロビジョニング）が確定した値を渡す。confirm:true まで dry-run。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tool_connection_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "紐付ける媒体アカウント接続（自 org 所有）"
+          },
+          "host_id": {
+            "default": "host1",
+            "description": "ブラウザホスト（既知のもののみ。既定 監督ブラウザホスト）",
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 65535,
+            "description": "host 上のコンテナ CDP port（初回ログインで確定した値。例 9227）"
+          },
+          "container_name": {
+            "description": "コンテナ名（任意・メタ情報）",
+            "type": "string"
+          },
+          "view_endpoint": {
+            "description": "noVNC 等の閲覧 URL（任意）",
+            "type": "string"
+          },
+          "max_agent_tabs": {
+            "default": 3,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "confirm": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["tool_connection_id", "port"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "deploy_checklist",
+      "description": "ペルソナの deploy 前チェックリストを返す（ダッシュボード概要タブのデプロイゲートと同一の9条件）。各項目の ok（クリア）/ detail（未クリアの理由）と canDeploy（全クリアか）を返す。deploy できない理由を特定するのに使う。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["persona_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "skill_upsert",
+      "description": "⚠️ 執筆前に必ず MCP resource techhive://guides/author-skill（SKILL.md オーサリング規約）を読むこと。スキル（persona_specific / shared / adapter / system / cron_job）を作成・更新し、指定ペルソナに紐付ける。persona_specific/shared/adapter は skills_blueprint にも載る（Agent attach）。system/cron_job は ペルソナのスキル構成 のみ（agent 外で実行）。children で子ファイル（.py/.yaml 等）も同梱でき sandbox/RPA 系を完成させられる（deploy 時に Console へ同梱 push）。cron_job は execution_contract をほぼ必須とする。更新時は旧版を履歴に残す。commit:true まで dry-run（規約 lint の warnings を返す）。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "persona_id": {
+            "type": "string"
+          },
+          "skill_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "skill_type": {
+            "type": "string",
+            "enum": ["persona_specific", "shared", "adapter", "system", "cron_job"],
+            "description": "persona_specific/shared/adapter は Agent に attach（blueprint 搭載）。system/cron_job は ペルソナのスキル構成 のみ（agent 外で実行、blueprint 非搭載）。"
+          },
+          "deployment": {
+            "default": "managed_agent",
+            "type": "string",
+            "enum": ["managed_agent", "system_internal", "sandbox"]
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string"
+          },
+          "bfc_id": {
+            "default": "-",
+            "type": "string"
+          },
+          "ai_human_ratio": {
+            "type": "string"
+          },
+          "execution_contract": {
+            "description": "cron_job / sandbox RPA の実行契約（runner 入出力）。cron_job では実質必須。",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "display_order": {
+            "default": 0,
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "message": {
+            "type": "string"
+          },
+          "children": {
+            "description": "サンドボックス/RPA 系スキルの子ファイル（.py/.yaml 等）。指定したものを upsert（同名は置換）。未指定の既存子は削除しない。",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "file_name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "例: scout_send.py / site-schema.yaml"
+                },
+                "content": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "file_type": {
+                  "description": "未指定なら拡張子から推定（.yaml/.yml/.json→schema、他→script）",
+                  "type": "string",
+                  "enum": ["reference_script", "reference_schema"]
+                }
+              },
+              "required": ["file_name", "content"]
+            }
+          },
+          "commit": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["persona_id", "skill_id", "skill_type", "content"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "persona_upsert",
+      "description": "⚠️ 作成前に必ず MCP resource techhive://guides/author-persona（ペルソナ作成ガイド）を読むこと。ペルソナの束（コア設定 + スキル + ツールリンク + 部署 + cron 設定）を原子的に作成・更新する。enabled は作成時 false 固定。agent_meta は mcp_servers キーのみ扱い（外部 MCP 接続用・指定時だけマージ更新）、それ以外の agent_meta/環境などデプロイ所有列は触らない。commit:true まで dry-run（検証結果のみ返す）。schedules は冪等 upsert（未指定の既存行は削除しない）。skills の in_blueprint で Managed Agent 搭載スキルを指定（既定 true）。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "persona": {
+            "type": "object",
+            "properties": {
+              "persona_id": {
+                "type": "string"
+              },
+              "model": {
+                "default": "claude-haiku-4-5",
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string"
+              },
+              "system_prompt": {
+                "default": "",
+                "type": "string"
+              },
+              "config": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "triggers": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "manual"
+                        }
+                      },
+                      "required": ["type"],
+                      "description": "手動起動のみ。例: {\"type\":\"manual\"}"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "cron"
+                        },
+                        "schedule": {
+                          "type": "string",
+                          "description": "crontab 式（UTC）。例: \"0 11 * * 1-5\""
+                        }
+                      },
+                      "required": ["type", "schedule"],
+                      "description": "定期起動。発火には cron 設定 も必要。例: {\"type\":\"cron\",\"schedule\":\"0 23 * * 0-4\"}"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "webhook"
+                        },
+                        "source": {
+                          "type": "string",
+                          "description": "媒体ソース。例: \"airwork\""
+                        },
+                        "event": {
+                          "description": "イベント名。例: \"applicant.created\"",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "source"],
+                      "description": "Webhook 受信起動。例: {\"type\":\"webhook\",\"source\":\"airwork\",\"event\":\"applicant.created\"}"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "email_pubsub"
+                        },
+                        "source": {
+                          "type": "string",
+                          "description": "メールソース。例: \"airwork-mail\""
+                        },
+                        "match": {
+                          "type": "object",
+                          "properties": {
+                            "senders": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "subjectKeywords": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "required": ["type", "source"],
+                      "description": "Email(Gmail Pub/Sub) 受信起動。例: {\"type\":\"email_pubsub\",\"source\":\"airwork-mail\",\"match\":{\"subjectKeywords\":[\"面接\"]}}"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "case_event"
+                        }
+                      },
+                      "required": ["type"],
+                      "description": "業務イベント連鎖で起動。例: {\"type\":\"case_event\"}"
+                    }
+                  ]
+                }
+              },
+              "policy": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "case_config": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "department": {
+                "type": "string"
+              },
+              "human_workflow_department_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "human_workflow_l2_code": {
+                "type": "string"
+              },
+              "supervisor_user_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "avatar_path": {
+                "type": "string"
+              },
+              "mcp_servers": {
+                "description": "外部 MCP サーバ(RAKUDA atlas 等)。直結は「全ツールが read-only かつ書き込み・外部作用が THA MCP を通る」場合に限る(00-vision.md 設計原則 P-4 の例外)。write 系を持つ MCP は THA MCP のカスタムツールとして実装すること。",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "url"
+                    },
+                    "name": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9_-]+$",
+                      "description": "MCP サーバ名。tools の mcp_toolset.mcp_server_name と対応。例: \"atlas\""
+                    },
+                    "url": {
+                      "type": "string",
+                      "pattern": "^https?:\\/\\/",
+                      "description": "MCP エンドポイント。例: \"https://atlas.rakuda.co/mcp\""
+                    },
+                    "connection_id": {
+                      "description": "認証を解決する 接続情報.id。credentials_encrypted の token/api_key を Vault credential(static_bearer) として登録する。省略すると認証が配線されない。",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "required": ["type", "name", "url"]
+                }
+              }
+            },
+            "required": ["persona_id"]
+          },
+          "skills": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "skill_id": {
+                  "type": "string"
+                },
+                "display_order": {
+                  "default": 0,
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "in_blueprint": {
+                  "default": true,
+                  "type": "boolean"
+                }
+              },
+              "required": ["skill_id"]
+            }
+          },
+          "tool_links": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "departments": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "is_primary": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "required": ["slug"]
+            }
+          },
+          "schedules": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "job_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "skill_id": {
+                  "type": "string"
+                },
+                "firings": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "firing_id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "cron_expr": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": ["firing_id", "cron_expr"]
+                  }
+                }
+              },
+              "required": ["job_id", "firings"]
+            }
+          },
+          "commit": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["persona"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "inspect",
+      "description": "デプロイ済みペルソナの Anthropic Managed Agent 実体を取得し、DB の skills_blueprint / version と突き合わせて diff を返す。実際に attach されているスキルを確認する（Console 非公開のため）。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["persona_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "deploy",
+      "description": "ペルソナを Managed Agent としてデプロイする。自 org 所有の blueprint スキルを Console に push し、未登録なら register（Env+Agent 作成）、登録済みなら update する。bundle_validate 合格と有効な anthropic_workspace 接続が前提。commit:true まで dry-run。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "commit": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["persona_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "tool_connection_create",
+      "description": "コネクタ（接続情報 行）を新規登録する。認証情報（credentials）はサーバー側で暗号化して保存するため FDE 端末に秘密鍵は不要。既知 tool_id（catalog_list 参照）は必須フィールドを自動検証。新媒体（例 indeed-account）は connector_type（browser/api）を指定すれば定義なしでも登録でき、secret_keys に挙げたフィールドを暗号化する。登録後の id を persona_upsert の tool_links に渡す。commit:true まで dry-run。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "tool_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "description": "コネクタ識別子。既存: airwork-account / gcp-gmail-push-sa / slack / gcp-spreadsheet-sa / google-calendar / resend / timerex-url / anthropic_workspace。新媒体は任意の slug（connector_type 必須）。"
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "表示名（例: Airwork 〇〇社 / Slack 採用チャンネル）"
+          },
+          "credentials": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "認証情報フィールドの key→value マップ。既知 tool_id は必須フィールドが決まる（dry-run で一覧）。"
+          },
+          "connector_type": {
+            "description": "新規 tool_id（未知）の場合は必須。browser=媒体ログイン等の有人/CDP 系、api=外部 API。既知 tool_id では無視される。",
+            "type": "string",
+            "enum": ["browser", "api"]
+          },
+          "secret_keys": {
+            "description": "新規 tool_id で暗号化するフィールド key の一覧（例 ['password','api_token']）。未指定なら全フィールド平文。既知 tool_id では無視される。",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "commit": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["tool_id", "display_name", "credentials"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "tool_request",
+      "description": "FDE が欲しい Custom Tool / Connector / Adapter の新規実装、または既製 apps/ 面（UIフォーム・ルート・migration・リゾルバ等）の改修（kind=change_request）を構造化 GitHub issue にする。先に定義基準（techhive://guides/author-{custom-tool,connector,adapter,change-request}）を読むこと。新規ブロックは暫定コード + 仕様、change_request は area/現状/望む挙動/対象ファイル候補（+任意パッチ）を渡す。整形済み issue 本文と GitHub new-issue プリフィル URL を返す（人間がワンクリックで起票、開発者が精査して取り込む）。サーバから GitHub へ直接は書かない。repo を直接触れるなら repo_authoring_plan で branch→生成→PR の runbook を得られる。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["custom_tool", "connector", "adapter", "change_request"]
+          },
+          "name": {
+            "type": "string",
+            "description": "提案する名前/slug（例: indeed-account, spreadsheet-connector-dwd-field）"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "何をするか・なぜ要るか（業務文脈）"
+          },
+          "inputs": {
+            "description": "入力フィールド（custom_tool 向け）",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "string / number / boolean 等"
+                },
+                "required": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": ["name", "type"]
+            }
+          },
+          "output_desc": {
+            "description": "期待する出力の説明（custom_tool / connector 向け）",
+            "type": "string"
+          },
+          "integration": {
+            "description": "対応する外部 API / コネクタ tool_id / 対象媒体 URL",
+            "type": "string"
+          },
+          "area": {
+            "description": "change_request: 対象サーフェス（例: コネクタ管理UI / gcp-spreadsheet-sa フォーム, MCP /api/mcp ルート, supabase migration）",
+            "type": "string"
+          },
+          "current_behavior": {
+            "description": "change_request: 現状の挙動・何が問題か（再現条件やエラー文言があれば添える）",
+            "type": "string"
+          },
+          "desired_behavior": {
+            "description": "change_request: 望む挙動",
+            "type": "string"
+          },
+          "affected_paths": {
+            "description": "change_request: FDE が repo を読んで特定した対象ファイル候補（開発者の初動を速める）",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "risk_tier": {
+            "description": "候補 risk tier（1 Read / 2 Internal Write / 3 External / 4 Irreversible）。最終確定は開発者",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "hitl_needed": {
+            "description": "人間承認(HITL)が要るか",
+            "type": "boolean"
+          },
+          "example_input": {
+            "type": "string"
+          },
+          "example_output": {
+            "type": "string"
+          },
+          "provisional_code": {
+            "description": "暫定コード。custom_tool/connector/adapter は defineTool / ConnectorDefinition / adapter .py の形（実質必須）。change_request は任意のパッチ案",
+            "type": "string"
+          },
+          "notes": {
+            "description": "補足・未確定事項・参考ドキュメント URL",
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["kind", "name", "purpose"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "repo_authoring_plan",
+      "description": "repo を直接触れる FDE 向けに、Custom Tool/Connector/Adapter の新規実装または既製面の改修（kind=change_request）を repo で進める『現状確認 → 条件付き runbook』を返す（戻り値が実行指示）。working_dir（repo の絶対パス。ターミナルが repo 配下でない場合に指定）を受け取り、ブランチ作成→コード生成→lint/typecheck→ISSUE→PR の手順を、すべて『既にやってあればスキップ』の冪等形で返す。change_request は affected_paths を生成対象に使う。MCP サーバ自身は git/ファイルを実行しない（FDE の Claude Code が runbook を実行）。先に定義基準 techhive://guides/author-<kind> と golden 実例を読むこと。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["custom_tool", "connector", "adapter", "change_request"]
+          },
+          "name": {
+            "type": "string",
+            "description": "提案する名前/slug（例: indeed-account, spreadsheet-connector-dwd-field）"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "何をするか・なぜ要るか（業務文脈）"
+          },
+          "inputs": {
+            "description": "入力フィールド（custom_tool 向け）",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "string / number / boolean 等"
+                },
+                "required": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": ["name", "type"]
+            }
+          },
+          "output_desc": {
+            "description": "期待する出力の説明（custom_tool / connector 向け）",
+            "type": "string"
+          },
+          "integration": {
+            "description": "対応する外部 API / コネクタ tool_id / 対象媒体 URL",
+            "type": "string"
+          },
+          "area": {
+            "description": "change_request: 対象サーフェス（例: コネクタ管理UI / gcp-spreadsheet-sa フォーム, MCP /api/mcp ルート, supabase migration）",
+            "type": "string"
+          },
+          "current_behavior": {
+            "description": "change_request: 現状の挙動・何が問題か（再現条件やエラー文言があれば添える）",
+            "type": "string"
+          },
+          "desired_behavior": {
+            "description": "change_request: 望む挙動",
+            "type": "string"
+          },
+          "affected_paths": {
+            "description": "change_request: FDE が repo を読んで特定した対象ファイル候補（開発者の初動を速める）",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "risk_tier": {
+            "description": "候補 risk tier（1 Read / 2 Internal Write / 3 External / 4 Irreversible）。最終確定は開発者",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "hitl_needed": {
+            "description": "人間承認(HITL)が要るか",
+            "type": "boolean"
+          },
+          "example_input": {
+            "type": "string"
+          },
+          "example_output": {
+            "type": "string"
+          },
+          "provisional_code": {
+            "description": "暫定コード。custom_tool/connector/adapter は defineTool / ConnectorDefinition / adapter .py の形（実質必須）。change_request は任意のパッチ案",
+            "type": "string"
+          },
+          "notes": {
+            "description": "補足・未確定事項・参考ドキュメント URL",
+            "type": "string"
+          },
+          "working_dir": {
+            "description": "techhive-agent リポジトリの絶対パス。ターミナルが repo 配下でない場合に指定。省略時は cwd 前提",
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["kind", "name", "purpose"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "workflow_graph_upsert",
+      "description": "ワークフローグラフを ペルソナ定義.workflow_agent に保存する。Mermaid テキスト / PNG base64 / 直接 nodes+edges の 3 ソースに対応。commit:true まで dry-run（解析結果を確認できる）。保存後はダッシュボードのワークフロータブで可視化される。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string",
+            "description": "対象ペルソナの persona_id"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": {
+            "description": "グラフのタイトル（省略時は persona_id を使用）",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["mermaid", "png", "direct"],
+            "description": "入力ソース。mermaid: Mermaid flowchart テキスト / png: PNG の base64 / direct: nodes+edges を直接渡す"
+          },
+          "mermaid": {
+            "description": "source=\"mermaid\" 時に渡す Mermaid flowchart テキスト",
+            "type": "string"
+          },
+          "png_base64": {
+            "description": "source=\"png\" 時に渡す PNG の base64 文字列（data:image/png;base64, プレフィックスは不要）",
+            "type": "string"
+          },
+          "nodes": {
+            "description": "source=\"direct\" 時のノード配列",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": ["trigger", "skill", "decision", "terminal", "tool", "sticky"]
+                },
+                "description": {
+                  "type": "string"
+                },
+                "meta": {
+                  "type": "string"
+                },
+                "tone": {
+                  "type": "string",
+                  "enum": ["default", "success", "warning", "danger", "info"]
+                },
+                "position": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["x", "y"]
+                }
+              },
+              "required": ["id", "label", "kind"]
+            }
+          },
+          "edges": {
+            "description": "source=\"direct\" 時のエッジ配列",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "tone": {
+                  "type": "string",
+                  "enum": ["default", "success", "warning", "danger"]
+                },
+                "sourceHandle": {
+                  "type": "string"
+                },
+                "targetHandle": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": ["smoothstep", "step", "straight", "default"]
+                },
+                "animated": {
+                  "type": "boolean"
+                },
+                "strokeWidth": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "const": 1
+                    },
+                    {
+                      "type": "number",
+                      "const": 1.5
+                    },
+                    {
+                      "type": "number",
+                      "const": 2
+                    },
+                    {
+                      "type": "number",
+                      "const": 3
+                    }
+                  ]
+                },
+                "dashed": {
+                  "type": "boolean"
+                },
+                "arrow": {
+                  "type": "string",
+                  "enum": ["forward", "backward", "both", "none"]
+                },
+                "waypoints": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      }
+                    },
+                    "required": ["x", "y"]
+                  }
+                }
+              },
+              "required": ["id", "source", "target"]
+            }
+          },
+          "commit": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["persona_id", "source"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "model_validate",
+      "description": "業務モデル（PReP流・成果物中心、13-process-intake-doctrine.md §5 スキーマ）を決定論ルール R1–R11 + 構造チェックで検証し、NG（修正必須）/ ASK（質問リスト行き）の違反一覧と、そのまま 2 巡目ヒアリングに使える質問リストを返す。model を直接渡すか、scope_key で DB 保存済みモデル（最新版 or 指定 version）を検証する。書き込みなし。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "model": {
+            "description": "業務モデル本体（YAML を JSON 化したもの）。scope_key と排他",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "scope_key": {
+            "description": "DB 保存済みモデルを検証する場合の業務スコープキー",
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "version": {
+            "description": "scope_key 指定時の版（省略で最新）",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "process_model_upsert",
+      "description": "業務モデル（PReP流・成果物中心）を R1–R11 検証つきで 業務モデル に登録する。append-only で version が自動採番（最新+1）される。既定は dry-run（commit:false）で検証レポートのみ返す。NG 違反が残っている場合は commit:true でも書き込まない。ASK 違反（質問リスト行き）は書き込み可。status は as_is（既定）→ validated → ai_fit_done → tobe_agreed の順で FDE が明示的に進める。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "scope_key": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$",
+            "description": "業務スコープの安定キー（kebab-case。例: recruiting-airwork-mid-career）"
+          },
+          "model": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "業務モデル本体（13-process-intake-doctrine.md §5 スキーマの JSON）"
+          },
+          "status": {
+            "description": "省略時: NG=0 かつ ASK=0 なら validated、それ以外は as_is",
+            "type": "string",
+            "enum": ["as_is", "validated", "ai_fit_done", "tobe_agreed"]
+          },
+          "commit": {
+            "default": false,
+            "description": "false=dry-run（既定）/ true=INSERT 実行",
+            "type": "boolean"
+          },
+          "expected_latest_version": {
+            "description": "楽観ロック: 現在の最新 version がこの値でなければ書き込まない（0=まだ無い想定）",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": ["scope_key", "model"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "process_model_get",
+      "description": "業務モデル（PReP流・成果物中心）を DB から読む。scope_key 省略でスコープ一覧（各スコープの最新 version / status）、scope_key 指定で model 本体と直近の検証結果を返す。FDE が作業を再開するときの起点。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "scope_key": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "version": {
+            "description": "省略で最新版",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "include_history": {
+            "default": false,
+            "description": "true で全 version の一覧（model 本体なし）も返す",
+            "type": "boolean"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "ai_fit_analyze",
+      "description": "業務モデルの AI 適用分析（Phase 4）の決定論部分を実行する。ai_fit の bfc_id から Risk Tier を lookup（BFC カタログ.default_risk_tier: 1-2=auto / 3-4=confirm / 未設定・未マッピング=confirm に倒す）し、SoT 整備 prerequisites を自動生成、PII 取扱い・HITL ゲート位置（confirm なのに milestone を生まない）を検査する。返った ai_fit を model に反映して process_model_upsert で確定する。書き込みなし。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "model": {
+            "description": "業務モデル本体（bfc_id マッピング済みの ai_fit を含む）。scope_key と排他",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "scope_key": {
+            "description": "DB 保存済みモデルを分析する場合の業務スコープキー",
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "tobe_generate",
+      "description": "ai_fit 完了済みの業務モデルから ToBe 実装ブループリントを機械導出する（doctrine §8 の写像規約）。skill 分割はマイルストン成果物単位、HITL ゲートは confirm process が生む milestone、workflow_graph は direct 形式で返す（そのまま workflow_graph_upsert に渡せる）。全 process に deployment 判定が無いと実行できない（先に ai_fit_analyze）。出力は叩き台 — FDE がレビュー・調整して model.tobe に格納し process_model_upsert で確定する。書き込みなし。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "model": {
+            "description": "業務モデル本体（ai_fit 完了済み）。scope_key と排他",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "scope_key": {
+            "description": "DB 保存済みモデルから生成する場合の業務スコープキー",
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "persona_id": {
+            "description": "persona_id の指定（省略時は scope_key を流用）",
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "department_workflow_get",
+      "description": "部門ワークフロー（人間の業務フロー。/dashboard/process の表示実体 = 部署の業務フロー）を読む。department 省略で部門一覧（ワークフロー有無・更新日時つき）、指定（slug or uuid）で l2_workflows 全体と last_saved_at（upsert の楽観ロックに渡す値）を返す。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "department": {
+            "description": "部門の slug または uuid。省略で一覧",
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "department_workflow_upsert",
+      "description": "部門ワークフロー（人間の業務フロー = /dashboard/process の表示実体）を登録・更新する。L2 タブごとに mermaid flowchart テキスト（推奨: ラベル先頭に BFC コードを付けると l3std ノードになる。例 '1.3.6 面接日程調整'。コード無しは ext=BFC外業務、[/メモ/] は付箋）またはノードグラフ直値を渡す。既定は dry-run（commit:false）で変換サマリを返す — FDE が目視確認してから commit:true。楽観ロック: 既存更新は department_workflow_get の last_saved_at を渡す（新規は null）。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "department": {
+            "type": "string",
+            "description": "部門の slug または uuid"
+          },
+          "source": {
+            "default": "bfc",
+            "type": "string",
+            "enum": ["bfc", "empty"]
+          },
+          "l1_code": {
+            "description": "source='bfc' のとき必須（例: '1'）",
+            "type": "string"
+          },
+          "l2_workflows": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "mermaid": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "mermaid flowchart テキスト（サーバ側で変換）"
+                    },
+                    "bfc_code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["mermaid"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "nodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "position": {
+                            "type": "object",
+                            "properties": {
+                              "x": {
+                                "type": "number"
+                              },
+                              "y": {
+                                "type": "number"
+                              }
+                            },
+                            "required": ["x", "y"]
+                          },
+                          "data": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "width": {
+                            "type": "number"
+                          },
+                          "height": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["id", "type", "position", "data"]
+                      }
+                    },
+                    "edges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "target": {
+                            "type": "string"
+                          },
+                          "sourceHandle": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "targetHandle": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "data": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          }
+                        },
+                        "required": ["id", "source", "target"]
+                      }
+                    },
+                    "bfcCode": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["nodes", "edges"]
+                }
+              ]
+            },
+            "description": "L2 コード（\"1.3\" 等。empty 起点は \"default\"）→ mermaid or ノードグラフ"
+          },
+          "last_saved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "楽観ロック。既存更新 = department_workflow_get の last_saved_at / 新規作成 = null"
+          },
+          "commit": {
+            "default": false,
+            "description": "false=dry-run（変換サマリのみ）/ true=保存",
+            "type": "boolean"
+          }
+        },
+        "required": ["department", "l2_workflows", "last_saved_at"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "department_workflow_generate",
+      "description": "業務モデル（業務モデル）と ai_fit の bfc_id マッピングから、部門ワークフロー（/dashboard/process 形式）の叩き台を決定論導出する。bfc_id の L2 でタブをグルーピングし、process → l3std ノード（未マッピングは ext）、成果物の入力/同期関係 → エッジ、layered 自動レイアウト。出力をレビューして department_workflow_upsert（ノードグラフ直値）で保存する。書き込みなし。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "model": {
+            "description": "業務モデル本体（ai_fit の bfc_id マッピング済みが望ましい）。scope_key と排他",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "scope_key": {
+            "description": "DB 保存済みモデルから導出する場合の業務スコープキー",
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "department_workflow_patch",
+      "description": "部門ワークフロー（人間の業務フロー = /dashboard/process の表示実体）を差分編集する。upsert が L2 タブ全置換なのに対し、patch は add/update/remove_node・add/remove_edge・add/remove_l2 を順に適用する（会話しながら 1 ノードずつ育てる用途）。ノード種別: l3std（BFC 標準業務。code+label）/ ext（BFC 外業務。label）/ sticky（付箋。text）。既定は dry-run（commit:false）で結果グラフ＋検証を返す。commit:true 時は検証で NG があれば保存拒否。楽観ロック: last_saved_at（department_workflow_get の値）。relayout:true で変更タブを自動再配置。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "department": {
+            "type": "string",
+            "description": "部門の slug または uuid"
+          },
+          "ops": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "add_l2"
+                    },
+                    "l2": {
+                      "type": "string"
+                    },
+                    "bfcCode": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["op", "l2"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "remove_l2"
+                    },
+                    "l2": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["op", "l2"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "add_node"
+                    },
+                    "l2": {
+                      "type": "string"
+                    },
+                    "node": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "description": "省略時は自動採番",
+                          "type": "string"
+                        },
+                        "type": {
+                          "description": "既定 l3std。update 時は省略で現状維持",
+                          "type": "string",
+                          "enum": ["l3std", "ext", "sticky"]
+                        },
+                        "label": {
+                          "description": "l3std / ext のラベル",
+                          "type": "string"
+                        },
+                        "code": {
+                          "description": "l3std の BFC コード（例 '1.3.6'）",
+                          "type": "string"
+                        },
+                        "recurrence": {
+                          "description": "l3std の頻度（既定 'once'）",
+                          "type": "string"
+                        },
+                        "assignee": {
+                          "type": "string"
+                        },
+                        "phase": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "description": "ext の補足",
+                          "type": "string"
+                        },
+                        "text": {
+                          "description": "sticky の本文",
+                          "type": "string"
+                        },
+                        "color": {
+                          "description": "sticky の色（既定 'yellow'）",
+                          "type": "string"
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number"
+                            },
+                            "y": {
+                              "type": "number"
+                            }
+                          },
+                          "required": ["x", "y"]
+                        }
+                      }
+                    }
+                  },
+                  "required": ["op", "l2", "node"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "update_node"
+                    },
+                    "l2": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "node": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "description": "省略時は自動採番",
+                          "type": "string"
+                        },
+                        "type": {
+                          "description": "既定 l3std。update 時は省略で現状維持",
+                          "type": "string",
+                          "enum": ["l3std", "ext", "sticky"]
+                        },
+                        "label": {
+                          "description": "l3std / ext のラベル",
+                          "type": "string"
+                        },
+                        "code": {
+                          "description": "l3std の BFC コード（例 '1.3.6'）",
+                          "type": "string"
+                        },
+                        "recurrence": {
+                          "description": "l3std の頻度（既定 'once'）",
+                          "type": "string"
+                        },
+                        "assignee": {
+                          "type": "string"
+                        },
+                        "phase": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "description": "ext の補足",
+                          "type": "string"
+                        },
+                        "text": {
+                          "description": "sticky の本文",
+                          "type": "string"
+                        },
+                        "color": {
+                          "description": "sticky の色（既定 'yellow'）",
+                          "type": "string"
+                        },
+                        "position": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number"
+                            },
+                            "y": {
+                              "type": "number"
+                            }
+                          },
+                          "required": ["x", "y"]
+                        }
+                      }
+                    }
+                  },
+                  "required": ["op", "l2", "id", "node"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "remove_node"
+                    },
+                    "l2": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["op", "l2", "id"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "add_edge"
+                    },
+                    "l2": {
+                      "type": "string"
+                    },
+                    "edge": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "description": "省略時は 'source->target'",
+                          "type": "string"
+                        },
+                        "source": {
+                          "type": "string"
+                        },
+                        "target": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "sourceHandle": {
+                          "type": "string"
+                        },
+                        "targetHandle": {
+                          "type": "string"
+                        },
+                        "tone": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["source", "target"]
+                    }
+                  },
+                  "required": ["op", "l2", "edge"]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "const": "remove_edge"
+                    },
+                    "l2": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "target": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["op", "l2"]
+                }
+              ]
+            },
+            "description": "順に適用する差分操作のリスト"
+          },
+          "last_saved_at": {
+            "type": "string",
+            "description": "楽観ロック。department_workflow_get の last_saved_at を渡す"
+          },
+          "relayout": {
+            "default": false,
+            "description": "true で変更のあった L2 タブを layered layout に再配置",
+            "type": "boolean"
+          },
+          "commit": {
+            "default": false,
+            "description": "false=dry-run（結果グラフと検証のみ）/ true=保存",
+            "type": "boolean"
+          }
+        },
+        "required": ["department", "ops", "last_saved_at"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "department_workflow_validate",
+      "description": "部門ワークフロー（人間の業務フロー = /dashboard/process の表示実体）の構造を検証する。department 指定で DB 保存済みグラフを、l2_workflows 直値で未保存グラフ（upsert/patch 前チェック）を検証する。NG（存在しないノード参照・id 重複）と WARN（孤立ノード・非連結・BFC コード整合）を返す。NG があると upsert/patch の commit は拒否される。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "department": {
+            "description": "部門の slug または uuid。DB 保存済みグラフを検証する場合に指定",
+            "type": "string"
+          },
+          "l2_workflows": {
+            "description": "未保存グラフを直接検証する場合の l2_workflows。department と排他（両方あれば直値優先）",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "position": {
+                        "type": "object",
+                        "properties": {
+                          "x": {
+                            "type": "number"
+                          },
+                          "y": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["x", "y"]
+                      },
+                      "data": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
+                      },
+                      "width": {
+                        "type": "number"
+                      },
+                      "height": {
+                        "type": "number"
+                      }
+                    },
+                    "required": ["id", "type", "position", "data"]
+                  }
+                },
+                "edges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "source": {
+                        "type": "string"
+                      },
+                      "target": {
+                        "type": "string"
+                      },
+                      "sourceHandle": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "targetHandle": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "data": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "required": ["id", "source", "target"]
+                  }
+                },
+                "bfcCode": {
+                  "type": "string"
+                }
+              },
+              "required": ["nodes", "edges"]
+            }
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "skill_get",
+      "description": "スキルの本文（SKILL.md）と子ファイル（.py/.yaml 等）を取得する。skill_upsert は全文置換なので、更新前に必ずこれで現行本文を読む。自 org 所有スキルと共有 infra（adapter/system/cron_job）が対象。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "skill_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["skill_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "skill_versions",
+      "description": "スキルの版履歴（更新前スナップショット）を新しい順に一覧する。version_number / 作成日時 / メッセージ / Console 版を返す。skill_rollback で戻す版を選ぶ起点に使う。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "skill_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["skill_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "persona_activity",
+      "description": "ペルソナの稼働状況を観測する。既定は直近セッション一覧 + 健全性サマリ（状態別件数 / 最終稼働 / エラー）+ 直近コスト + HITL 通知。session_id を渡すとそのセッションの活動ログ（アクティビティログ）と業務台帳（業務台帳）を展開する。org スコープは RLS で自動。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["persona_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "persona_tool_scope_get",
+      "description": "ペルソナの MCP ツールスコープ（そのペルソナのセッションに露出するツールの許可リスト）を確認する。現在 materialize 済みの許可リストと、宣言（紐付けスキルの tools:）・実績（実際に呼ばれたツール）の内訳、宣言漏れ（実績にあるが宣言に無い）、再計算した場合との差分を返す。専用トークン未配線でスコープが未適用のペルソナはその旨も示す。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["persona_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "skill_evaluate",
+      "description": "SKILL.md を品質評価する。決定論的な静的 lint（A1 frontmatter 妥当性 / A2 簡潔性 / A5 time-sensitive 表現）をサーバ側で採点し、fuzzy な A3/A4 と挙動 judge（B1-B5 発火精度/指示追従/ガードレール/出力品質/具体性）は本文と rubric を返すので呼び出し元が懐疑的デフォルトで採点する。deploy 前の品質ゲートに使う。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "skill_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["skill_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "session_diagnose",
+      "description": "業務セッションが『なぜ止まったか』を診断する。status・error・Managed Agent 実ログ・活動ログ(アクティビティログ)・業務台帳(業務台帳)・HITL 承認待ちを集約し、復旧判断（persona_session_resume / 承認待ち / 終端エラー）の材料を返す。persona_activity で session_id を特定してから使う。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["session_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "read_session_logs",
+      "description": "推論分析用に、指定セッションの Managed Agents 生イベントログ(セッションログ)を取得する。担当クライアント(認証 org)のセッションに限る。record_finding の証拠収集に使う。retention 超過後は events=null。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_ids": {
+            "minItems": 1,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["session_ids"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "record_finding",
+      "description": "推論分析の改善所見を1件記録する。対象は skill(target_skill_id) か system_prompt(target_persona_id)。criteria は分析基準の安定コード配列(例 INF-2c)。session_ids は証拠参照のみで、生ログ抜粋・PII を body に入れない。担当クライアント(認証 org)の admin として書き込む。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "target_type": {
+            "type": "string",
+            "enum": ["skill", "system_prompt"]
+          },
+          "target_skill_id": {
+            "type": "string"
+          },
+          "target_persona_id": {
+            "type": "string"
+          },
+          "bfc_id": {
+            "type": "string"
+          },
+          "criteria": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "severity": {
+            "default": "medium",
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1
+          },
+          "proposed_change": {
+            "type": "string"
+          },
+          "session_ids": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "analysis_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["target_type", "title", "body"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "update_finding_status",
+      "description": "改善所見(改善所見)のライフサイクルを進める。proposed → applied(スキル/プロンプト改訂を適用した) → verified(改善を後続セッションで確認した)、または dismissed(却下)。applied 時は適用した スキルの版履歴.id を任意で紐付ける。担当クライアント(認証 org)の admin として更新。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["applied", "verified", "dismissed"]
+          },
+          "applied_skill_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["finding_id", "status"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "persona_set_enabled",
+      "description": "ペルソナを本番有効化（enabled=true）または一時停止（false）する。true にするときは『動くための条件が全部揃っているか』を検証し、未デプロイ / 未 push スキル / 再デプロイ待ち / bundle エラーがあれば拒否して理由を返す。false は常に許可。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["persona_id", "enabled"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "persona_run",
+      "description": "ペルソナを手動で 1 回起動して試走する（本番稼働の確認）。指定スキルで Managed Agents Session を起動し session_id を返す。以降 persona_activity(session_id) で結果を観測する。実際にエージェントが動き実アクションを行いうる（Tier3/4 は HITL ゲート）ため confirm:true まで dry-run。対象ペルソナは deploy 済み + enabled が前提（enable は可逆なので enable→試走→必要なら disable）。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "skill_id": {
+            "type": "string",
+            "description": "起動するエントリスキル（persona の blueprint に含まれること）"
+          },
+          "params": {
+            "description": "user.message で渡す入力パラメータ",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "label": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "confirm": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["persona_id", "skill_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "persona_session_resume",
+      "description": "stuck/timeout した業務セッションを『続きから』再開する（runtime の reopen 機構）。persona_run は新規起動だがこちらは既存セッションを再開。error 終端 / HITL 承認待ちは runtime が抑止し skipped_blocked を返す。まず session_diagnose で状態確認。実アクションが起きうる（Tier3/4 は HITL ゲート）ため confirm:true まで dry-run。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "confirm": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["session_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "skill_rollback",
+      "description": "自 org 所有スキルの本文を過去の版（skill_versions の version_number）に戻す（要承認）。戻す前に現行を新版としてスナップショットするので、戻し自体も巻き戻せる。needs_redeploy が立つので反映には deploy が必要。confirm:true まで差分プレビューのみ。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "skill_id": {
+            "type": "string"
+          },
+          "version_number": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "message": {
+            "type": "string"
+          },
+          "confirm": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["skill_id", "version_number"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "persona_tool_scope_refresh",
+      "description": "ペルソナの MCP ツールスコープ（許可リスト）を「宣言（紐付けスキルの tools:）∪ 実績（実際に呼ばれたツール）」で再計算し保存する。スキルの追加/削除や tools: 変更後に、そのペルソナのセッションに露出するツールを最新化する。実績を必ず含めるため使用中ツールは落ちない（非破壊）。deploy 時にも自動実行されるので、単発で反映したいときに使う。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": ["persona_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "skill_detach",
+      "description": "1 ペルソナからスキルを外す（スキル本体は残す・要承認）。ペルソナのスキル構成 を外し blueprint からも除去（再 deploy で Agent に反映）。confirm:true まで影響レポートのみ。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "skill_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "confirm": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["persona_id", "skill_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "skill_delete",
+      "description": "自 org 所有スキルを削除する（破壊的・要承認）。全ペルソナから外し（blueprint からも除去）スキル本体を soft(復元可)/hard 削除。confirm:true まで影響レポートのみ（承認後に実行）。adapter/system 等の共有スキルは対象外。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "skill_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "mode": {
+            "default": "soft",
+            "type": "string",
+            "enum": ["soft", "hard"]
+          },
+          "confirm": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["skill_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "persona_delete",
+      "description": "ペルソナを論理削除する（破壊的・要承認）。本体は残したまま無効化(deleted_at + enabled=false)し、スキル/ツール/部署/cron リンク + このペルソナ専用スキル + Managed Agent を削除。共有スキルは温存。物理削除はできない（運営限定）。confirm:true を渡すまでは影響レポートのみ（必ず内容を人間に提示して承認を得てから confirm:true で実行）。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "persona_id": {
+            "type": "string"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "cascade_owned_skills": {
+            "default": true,
+            "type": "boolean"
+          },
+          "confirm": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": ["persona_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  ]
+}
