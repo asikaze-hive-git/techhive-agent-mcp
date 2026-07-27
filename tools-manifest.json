@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-22T06:55:57.906Z",
+  "generatedAt": "2026-07-27T03:55:29.694Z",
   "sourceVersion": "0.1.0",
   "tools": [
     {
@@ -13,7 +13,7 @@
     },
     {
       "name": "catalog_list",
-      "description": "ペルソナ作成に使える既製ブロック（接続済みツール / 部署 / 利用可能スキル / 課金カテゴリ BFC / 許可モデル / 既存ペルソナ）を org 単位で一覧する。新しいコネクタやアダプタは作れないため、必ずここから選ぶ。BFC は全件を bfc_index（bfc_id + l3名）で俯瞰でき、詳細（手順 l4 込み）は bfc_search で絞り込む。",
+      "description": "ペルソナ作成に使える既製ブロック（作成可能なコネクタ種類 connector_catalog / 接続済みツール 接続情報 / 部署 / 利用可能スキル / 課金カテゴリ BFC / 許可モデル / 既存ペルソナ）を org 単位で一覧する。connector_catalog = 実装済みで tool_connection_create に使える媒体種類の全量、接続情報 = この org に既に登録済みの接続インスタンス。新しいコネクタ種類は勝手に作れないため、必ず connector_catalog から選ぶ。BFC は全件を bfc_index（bfc_id + l3名）で俯瞰でき、詳細（手順 l4 込み）は bfc_search で絞り込む。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -125,12 +125,6 @@
           "view_endpoint": {
             "description": "noVNC 等の閲覧 URL（任意）",
             "type": "string"
-          },
-          "max_agent_tabs": {
-            "default": 3,
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 10
           },
           "org_id": {
             "type": "string",
@@ -609,7 +603,7 @@
           "tool_id": {
             "type": "string",
             "pattern": "^[a-z0-9][a-z0-9-]*$",
-            "description": "コネクタ識別子。既存: airwork-account / gcp-gmail-push-sa / slack / gcp-spreadsheet-sa / google-calendar / resend / timerex-url / anthropic_workspace。新媒体は任意の slug（connector_type 必須）。"
+            "description": "コネクタ識別子。既知種別（catalog_list の connector_catalog 参照）: gcp-gmail-push-sa / slack / google-chat / gcp-spreadsheet-sa / google-calendar / gcp-drive-sa / airwork-account / timerex-url / zoom-url / freee-accounting / freee-hr / smarthr / hrmos-kintai / herp-hire / kaonavi / line-official-account / line-works / anthropic_workspace。新媒体は任意の slug（connector_type 必須）。"
           },
           "display_name": {
             "type": "string",
@@ -632,7 +626,7 @@
             "enum": ["browser", "api"]
           },
           "secret_keys": {
-            "description": "新規 tool_id で暗号化するフィールド key の一覧（例 ['password','api_token']）。未指定なら全フィールド平文。既知 tool_id では無視される。",
+            "description": "新規 tool_id で追加暗号化するフィールド key の一覧（例 ['api_token']）。共通定義 (password / private_key / *_token / *_secret / api_key 等) は指定不要で常に暗号化される。既知 tool_id では無視される。",
             "type": "array",
             "items": {
               "type": "string"
@@ -1909,6 +1903,30 @@
           }
         },
         "required": ["persona_id"],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "persona_model_review",
+      "description": "ペルソナのモデル選定が実ワークロードに見合っているかを診断する。trigger 構成（cron / webhook / 手動）・LLM 利用比率・実コスト・THA 消費を集計し、見直し候補にフラグ（LLM 未使用なのにモデル指定 / 設定と実使用モデルの乖離 / cron 支配 / 高単価 / THA 未記録）を立てて月次見込みを返す。モデルはペルソナ単位でしか選べないため、スキル単位の最適化はできない前提で読む。recommendation は候補であり自動適用はしない。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "persona_id": {
+            "type": "string"
+          },
+          "days": {
+            "default": 30,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 180
+          }
+        },
         "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
