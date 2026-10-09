@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-27T03:55:29.694Z",
+  "generatedAt": "2026-10-09T05:28:21.700Z",
   "sourceVersion": "0.1.0",
   "tools": [
     {
@@ -161,7 +161,7 @@
     },
     {
       "name": "skill_upsert",
-      "description": "⚠️ 執筆前に必ず MCP resource techhive://guides/author-skill（SKILL.md オーサリング規約）を読むこと。スキル（persona_specific / shared / adapter / system / cron_job）を作成・更新し、指定ペルソナに紐付ける。persona_specific/shared/adapter は skills_blueprint にも載る（Agent attach）。system/cron_job は ペルソナのスキル構成 のみ（agent 外で実行）。children で子ファイル（.py/.yaml 等）も同梱でき sandbox/RPA 系を完成させられる（deploy 時に Console へ同梱 push）。cron_job は execution_contract をほぼ必須とする。更新時は旧版を履歴に残す。commit:true まで dry-run（規約 lint の warnings を返す）。",
+      "description": "⚠️ 執筆前に必ず MCP resource techhive://guides/author-skill（SKILL.md オーサリング規約）を読むこと。テナント所有スキル（persona_specific / shared）を作成・更新し、指定ペルソナに紐付ける。どちらも skills_blueprint に載る（Agent attach）。共有インフラ（adapter / system、owner_org_id IS NULL）は本ツールでは作成・更新できない（設計上の境界。修正が必要なら開発者へ issue を起票する）。cron 起動にしたい場合も種別は変えず cron 設定 に発火行を持たせる。children で子ファイル（.py/.yaml 等）も同梱でき sandbox/RPA 系を完成させられる（deploy 時に Console へ同梱 push）。agent 外で動かす場合（deployment: sandbox / system_internal）は execution_contract をほぼ必須とする。更新時は旧版を履歴に残す。commit:true まで dry-run（規約 lint の warnings を返す）。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -179,8 +179,8 @@
           },
           "skill_type": {
             "type": "string",
-            "enum": ["persona_specific", "shared", "adapter", "system", "cron_job"],
-            "description": "persona_specific/shared/adapter は Agent に attach（blueprint 搭載）。system/cron_job は ペルソナのスキル構成 のみ（agent 外で実行、blueprint 非搭載）。"
+            "enum": ["persona_specific", "shared"],
+            "description": "persona_specific / shared はいずれも Agent に attach（blueprint 搭載）。cron 起動にしたい場合も種別は変えず、cron 設定 に発火行を持たせる（#972 で cron_job 種別は廃止）。"
           },
           "deployment": {
             "default": "managed_agent",
@@ -202,7 +202,7 @@
             "type": "string"
           },
           "execution_contract": {
-            "description": "cron_job / sandbox RPA の実行契約（runner 入出力）。cron_job では実質必須。",
+            "description": "agent 外のランナー（deployment: sandbox / system_internal）の実行契約（runner 入出力）。cron 起動のスキルでは実質必須。",
             "type": "object",
             "propertyNames": {
               "type": "string"
@@ -253,7 +253,7 @@
     },
     {
       "name": "persona_upsert",
-      "description": "⚠️ 作成前に必ず MCP resource techhive://guides/author-persona（ペルソナ作成ガイド）を読むこと。ペルソナの束（コア設定 + スキル + ツールリンク + 部署 + cron 設定）を原子的に作成・更新する。enabled は作成時 false 固定。agent_meta は mcp_servers キーのみ扱い（外部 MCP 接続用・指定時だけマージ更新）、それ以外の agent_meta/環境などデプロイ所有列は触らない。commit:true まで dry-run（検証結果のみ返す）。schedules は冪等 upsert（未指定の既存行は削除しない）。skills の in_blueprint で Managed Agent 搭載スキルを指定（既定 true）。",
+      "description": "⚠️ 作成前に必ず MCP resource techhive://guides/author-persona（ペルソナ作成ガイド）を読むこと。ペルソナの束（コア設定 + スキル + ツールリンク + 部署 + cron 設定）を原子的に作成・更新する。enabled は作成時 false 固定。agent_meta は mcp_servers キーのみ扱い（外部 MCP 接続用・指定時だけマージ更新）、それ以外の agent_meta/環境などデプロイ所有列は触らない。commit:true まで dry-run（検証結果のみ返す）。更新時に省略したキーは既存値を保持する（persona の各列も skills/tool_links/departments も。NULL 可の列は null でクリア、skills/tool_links/departments は [] で全解除）。schedules は冪等 upsert（未指定の既存行は削除しない）。skills の in_blueprint で Managed Agent 搭載スキルを指定（既定 true）。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -269,17 +269,19 @@
                 "type": "string"
               },
               "model": {
-                "default": "claude-haiku-4-5",
+                "description": "省略時: 新規は claude-haiku-5-5 / 更新は既存値を保持",
                 "type": "string"
               },
               "display_name": {
-                "type": "string"
+                "description": "省略で保持 / null でクリア",
+                "type": ["string", "null"]
               },
               "role": {
-                "type": "string"
+                "description": "省略で保持 / null でクリア",
+                "type": ["string", "null"]
               },
               "system_prompt": {
-                "default": "",
+                "description": "省略時: 新規は空 / 更新は既存値を保持",
                 "type": "string"
               },
               "config": {
@@ -290,7 +292,7 @@
                 "additionalProperties": {}
               },
               "triggers": {
-                "default": [],
+                "description": "省略時: 新規は [] / 更新は既存値を保持",
                 "type": "array",
                 "items": {
                   "oneOf": [
@@ -403,20 +405,38 @@
                 "type": "string"
               },
               "human_workflow_department_id": {
-                "type": "string",
-                "format": "uuid",
-                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                "description": "省略で保持 / null でクリア",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "human_workflow_l2_code": {
-                "type": "string"
+                "description": "省略で保持 / null でクリア",
+                "type": ["string", "null"]
               },
               "supervisor_user_id": {
-                "type": "string",
-                "format": "uuid",
-                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                "description": "省略で保持 / null でクリア",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "avatar_path": {
-                "type": "string"
+                "description": "省略で保持（ダッシュボードで選んだアバターを消さない）/ null でクリア",
+                "type": ["string", "null"]
               },
               "mcp_servers": {
                 "description": "外部 MCP サーバ(RAKUDA atlas 等)。直結は「全ツールが read-only かつ書き込み・外部作用が THA MCP を通る」場合に限る(00-vision.md 設計原則 P-4 の例外)。write 系を持つ MCP は THA MCP のカスタムツールとして実装すること。",
@@ -452,7 +472,7 @@
             "required": ["persona_id"]
           },
           "skills": {
-            "default": [],
+            "description": "省略で既存の紐付けと skills_blueprint を保持 / 指定すると集合置換（[] で全解除）",
             "type": "array",
             "items": {
               "type": "object",
@@ -475,7 +495,7 @@
             }
           },
           "tool_links": {
-            "default": [],
+            "description": "省略で既存の紐付けを保持 / 指定すると集合置換（[] で全解除）",
             "type": "array",
             "items": {
               "type": "string",
@@ -484,7 +504,7 @@
             }
           },
           "departments": {
-            "default": [],
+            "description": "省略で既存の紐付けを保持 / 指定すると集合置換（[] で全解除）",
             "type": "array",
             "items": {
               "type": "object",
@@ -514,6 +534,7 @@
                   "minLength": 1
                 },
                 "skill_id": {
+                  "description": "発火先スキルの skill_id。**必須**。cron 設定.skill_manifest_id の解決に使う。省略すると発火先を持たない cron 行になるため検証エラーになる。",
                   "type": "string"
                 },
                 "firings": {
@@ -549,7 +570,7 @@
     },
     {
       "name": "inspect",
-      "description": "デプロイ済みペルソナの Anthropic Managed Agent 実体を取得し、DB の skills_blueprint / version と突き合わせて diff を返す。実際に attach されているスキルを確認する（Console 非公開のため）。",
+      "description": "デプロイ済みペルソナの Anthropic Managed Agent 実体を取得し、DB の skills_blueprint / version / model と突き合わせて diff を返す。実際に attach されているスキルと、稼働中のモデルを確認する（Console 非公開のため）。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -583,6 +604,21 @@
           "commit": {
             "default": false,
             "type": "boolean"
+          },
+          "activate": {
+            "default": true,
+            "description": "新版を稼働版 (active_agent_version) に反映するか (#839)。false = テスト稼働デプロイ: 本番セッションは据え置きの稼働版で起動し続ける。稼働版だけを付け替えるツール/画面は無く、検証後は activate=true で再度 deploy して反映する (その deploy の版が稼働版になる)。register (初回) では無視され常に反映。",
+            "type": "boolean"
+          },
+          "apply_model": {
+            "default": false,
+            "description": "ペルソナの設定のモデルを、稼働中のエージェントへ送るか。既定 false。設定と稼働中のモデルが違うとき、false なら deploy は何も変えずに止まり、差を表示する。true なら稼働中のエージェントを設定のモデルに切り替える (新しい版ができ、effort は新しいモデルの既定に戻る)。dry-run の model 欄で切り替えの内容を確かめてから指定する。register (初回) では無視され、設定のモデルで作られる。",
+            "type": "boolean"
+          },
+          "allow_large_context_prefix": {
+            "default": false,
+            "description": "起動時コンテキストのガード (#868) を明示的に無視して deploy する。既定 false。ツール面が絞られていないと起動時点でコンテキストの大半を消費し、最初のツール結果でセッションが恒久停止する。意図的に許容する場合のみ true。",
+            "type": "boolean"
           }
         },
         "required": ["persona_id"],
@@ -603,7 +639,7 @@
           "tool_id": {
             "type": "string",
             "pattern": "^[a-z0-9][a-z0-9-]*$",
-            "description": "コネクタ識別子。既知種別（catalog_list の connector_catalog 参照）: gcp-gmail-push-sa / slack / google-chat / gcp-spreadsheet-sa / google-calendar / gcp-drive-sa / airwork-account / timerex-url / zoom-url / freee-accounting / freee-hr / smarthr / hrmos-kintai / herp-hire / kaonavi / line-official-account / line-works / anthropic_workspace。新媒体は任意の slug（connector_type 必須）。"
+            "description": "コネクタ識別子。既知種別（catalog_list の connector_catalog 参照）: gcp-gmail-push-sa / slack / google-chat / gcp-spreadsheet-sa / google-calendar / gcp-drive-sa / airwork-account / wantedly-account / doda-account / mynavi-account / timerex-url / zoom-url / freee-accounting / freee-hr / smarthr / hrmos-kintai / herp-hire / kaonavi / line-official-account / line-works / anthropic_workspace。新媒体は任意の slug（connector_type 必須）。"
           },
           "display_name": {
             "type": "string",
@@ -853,13 +889,17 @@
     },
     {
       "name": "workflow_graph_upsert",
-      "description": "ワークフローグラフを ペルソナ定義.workflow_agent に保存する。Mermaid テキスト / PNG base64 / 直接 nodes+edges の 3 ソースに対応。commit:true まで dry-run（解析結果を確認できる）。保存後はダッシュボードのワークフロータブで可視化される。",
+      "description": "⚠️ 作図前に必ず MCP resource techhive://guides/author-workflow-graph（作図基準）を読むこと。ワークフローグラフを保存する。persona_id 指定 = ペルソナWF（ペルソナ定義.workflow_agent。どのスキルがどの順で走るか = L3 の並び）/ skill_id 指定 = スキル内フロー（スキル台帳.flow。1 スキルの内部 = L4。#861）。Mermaid テキスト / PNG base64 / 直接 nodes+edges の 3 ソースに対応。★ 投入は source='direct' を使うこと（mermaid パーサは点線エッジ -.-> を行ごとノード化し subgraph/end も壊すが dry-run は ok を返すため気づけない）。左→右に描き、全エッジに sourceHandle='r' / targetHandle='l' と type='straight' を付け、trigger ノードの x を揃える。commit:true まで dry-run（返り値の graph を必ず目視する）。保存は全置換なので UI で人が調整した配置も上書きされる。skill_id 指定時は保存前に skill_flow_validate（F1–F6）が走るが、NG があっても保存は通る（validation に警告として必ず返る）。NG を残したフローはガードレールとして未完成なので、fixes を潰してから運用に載せること。",
       "inputSchema": {
         "type": "object",
         "properties": {
           "persona_id": {
-            "type": "string",
-            "description": "対象ペルソナの persona_id"
+            "description": "対象ペルソナの persona_id（ペルソナWF を保存する場合）",
+            "type": "string"
+          },
+          "skill_id": {
+            "description": "対象スキルの skill_id（スキル内フローを保存する場合。#861）",
+            "type": "string"
           },
           "org_id": {
             "type": "string",
@@ -867,7 +907,7 @@
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           },
           "title": {
-            "description": "グラフのタイトル（省略時は persona_id を使用）",
+            "description": "グラフのタイトル（省略時は対象の名前を使用）",
             "type": "string"
           },
           "description": {
@@ -886,6 +926,11 @@
             "description": "source=\"png\" 時に渡す PNG の base64 文字列（data:image/png;base64, プレフィックスは不要）",
             "type": "string"
           },
+          "direction": {
+            "description": "自動レイアウトの向き。LR=左から右（スキル内フローの既定）/ TB=上から下。mermaid の場合は宣言行から自動判定されるので通常は不要",
+            "type": "string",
+            "enum": ["LR", "TB"]
+          },
           "nodes": {
             "description": "source=\"direct\" 時のノード配列",
             "type": "array",
@@ -900,7 +945,7 @@
                 },
                 "kind": {
                   "type": "string",
-                  "enum": ["trigger", "skill", "decision", "terminal", "tool", "sticky"]
+                  "enum": ["trigger", "skill", "decision", "gate", "terminal", "tool", "sticky"]
                 },
                 "description": {
                   "type": "string"
@@ -923,6 +968,15 @@
                     }
                   },
                   "required": ["x", "y"]
+                },
+                "toolName": {
+                  "description": "kind=\"tool\" が呼ぶ MCP ツール名。Risk Tier 判定（F4）に使う",
+                  "type": "string"
+                },
+                "terminalKind": {
+                  "description": "kind=\"terminal\" の終わり方。escalate = 人間に返す出口（F3 で 1 つ以上必須）",
+                  "type": "string",
+                  "enum": ["done", "escalate", "abort"]
                 }
               },
               "required": ["id", "label", "kind"]
@@ -990,6 +1044,11 @@
                   "type": "string",
                   "enum": ["forward", "backward", "both", "none"]
                 },
+                "bend": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
                 "waypoints": {
                   "type": "array",
                   "items": {
@@ -1014,7 +1073,7 @@
             "type": "boolean"
           }
         },
-        "required": ["persona_id", "source"],
+        "required": ["source"],
         "$schema": "http://json-schema.org/draft-07/schema#"
       }
     },
@@ -1320,24 +1379,10 @@
                             "type": "string"
                           },
                           "sourceHandle": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
+                            "type": ["string", "null"]
                           },
                           "targetHandle": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
+                            "type": ["string", "null"]
                           },
                           "type": {
                             "type": "string"
@@ -1367,15 +1412,8 @@
             "description": "L2 コード（\"1.3\" 等。empty 起点は \"default\"）→ mermaid or ノードグラフ"
           },
           "last_saved_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "楽観ロック。既存更新 = department_workflow_get の last_saved_at / 新規作成 = null"
+            "description": "楽観ロック。既存更新 = department_workflow_get の last_saved_at / 新規作成 = null",
+            "type": ["string", "null"]
           },
           "commit": {
             "default": false,
@@ -1791,24 +1829,10 @@
                         "type": "string"
                       },
                       "sourceHandle": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
+                        "type": ["string", "null"]
                       },
                       "targetHandle": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
+                        "type": ["string", "null"]
                       },
                       "type": {
                         "type": "string"
@@ -1833,6 +1857,64 @@
               },
               "required": ["nodes", "edges"]
             }
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "skill_flow_validate",
+      "description": "スキル内フロー（L4）を決定論ルール F1–F6 + 構造チェックで検証する。F1 入口はちょうど 1 つ（始まりが違えば別スキル）/ F2 全ノードから終端に到達可能（行き止まり・孤島なし）/ F3 人間に返す出口（escalate 終端）と網羅的な分岐 / F4 Risk Tier 3-4 のツールに承認ゲート無しで到達できない / F5 frontmatter tools: とグラフの一致 / F6 SKILL.md 本文とのドリフト。skill_id で DB 保存済みフローを検証するか、flow を直接渡す。書き込みなし。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "skill_id": {
+            "description": "DB 保存済みフローを検証する場合の skill_id。flow と排他",
+            "type": "string"
+          },
+          "flow": {
+            "description": "スキル内フロー本体（SkillFlowGraph）。skill_id と排他",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "body": {
+            "description": "flow 直渡し時に F5/F6 も判定するための SKILL.md 本文。省略すると F5/F6 はスキップ",
+            "type": "string"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "skill_scaffold_from_flow",
+      "description": "スキル内フロー（スキル台帳.flow）から SKILL.md の骨格を決定論生成する。ノードの位相順が番号付きステップ、出エッジのラベルが完了条件、tool ノードが frontmatter tools:、gate ノードが HITL 節、terminal が終了条件になる。各見出しに <!-- node:id --> アンカーが入り、以後 skill_flow_validate の F6 が図と文のドリフトを検出できる。書き込みなし（レビューして skill_upsert で登録する）。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "skill_id": {
+            "description": "DB 保存済みフローから生成する場合の skill_id",
+            "type": "string"
+          },
+          "flow": {
+            "description": "フロー本体（SkillFlowGraph）を直接渡す場合。skill_id と排他",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
           }
         },
         "$schema": "http://json-schema.org/draft-07/schema#"
