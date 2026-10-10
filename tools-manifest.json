@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-10T09:34:53.485Z",
+  "generatedAt": "2026-10-10T10:22:02.106Z",
   "sourceVersion": "0.1.0",
   "tools": [
     {
@@ -108,7 +108,6 @@
             "description": "紐付ける媒体アカウント接続（自 org 所有）"
           },
           "host_id": {
-            "default": "host1",
             "description": "ブラウザホスト（既知のもののみ。省略で既定）",
             "type": "string"
           },
@@ -439,7 +438,7 @@
                 "type": ["string", "null"]
               },
               "mcp_servers": {
-                "description": "外部 MCP サーバ。直結は「全ツールが read-only かつ書き込み・外部作用が THA MCP を通る」場合に限る(00-vision.md 設計原則 P-4 の例外)。write 系を持つ MCP は THA MCP のカスタムツールとして実装すること。",
+                "description": "外部 MCP サーバ。直結は「全ツールが read-only かつ書き込み・外部作用が THA MCP を通る」場合に限る(エージェントのツールは THA MCP を通すのが原則で、直結はその例外)。write 系を持つ MCP は THA MCP のカスタムツールとして実装すること。",
                 "type": "array",
                 "items": {
                   "type": "object",
@@ -1079,7 +1078,7 @@
     },
     {
       "name": "model_validate",
-      "description": "業務モデル（PReP流・成果物中心、13-process-intake-doctrine.md §5 スキーマ）を決定論ルール R1–R11 + 構造チェックで検証し、NG（修正必須）/ ASK（質問リスト行き）の違反一覧と、そのまま 2 巡目ヒアリングに使える質問リストを返す。model を直接渡すか、scope_key で DB 保存済みモデル（最新版 or 指定 version）を検証する。書き込みなし。",
+      "description": "業務モデル（PReP流・成果物中心の記述スキーマ）を決定論ルール R1–R11 + 構造チェックで検証し、NG（修正必須）/ ASK（質問リスト行き）の違反一覧と、そのまま 2 巡目ヒアリングに使える質問リストを返す。model を直接渡すか、scope_key で DB 保存済みモデル（最新版 or 指定 version）を検証する。書き込みなし。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1133,7 +1132,7 @@
               "type": "string"
             },
             "additionalProperties": {},
-            "description": "業務モデル本体（13-process-intake-doctrine.md §5 スキーマの JSON）"
+            "description": "業務モデル本体（業務モデル記述スキーマの JSON。形は model_validate で検証できる）"
           },
           "status": {
             "description": "省略時: NG=0 かつ ASK=0 なら validated、それ以外は as_is",
@@ -1221,7 +1220,7 @@
     },
     {
       "name": "tobe_generate",
-      "description": "ai_fit 完了済みの業務モデルから ToBe 実装ブループリントを機械導出する（doctrine §8 の写像規約）。skill 分割はマイルストン成果物単位、HITL ゲートは confirm process が生む milestone、workflow_graph は direct 形式で返す（そのまま workflow_graph_upsert に渡せる）。全 process に deployment 判定が無いと実行できない（先に ai_fit_analyze）。出力は叩き台 — FDE がレビュー・調整して model.tobe に格納し process_model_upsert で確定する。書き込みなし。",
+      "description": "ai_fit 完了済みの業務モデルから ToBe 実装ブループリントを機械導出する（ToBe から実装への写像規約に従う）。skill 分割はマイルストン成果物単位、HITL ゲートは confirm process が生む milestone、workflow_graph は direct 形式で返す（そのまま workflow_graph_upsert に渡せる）。全 process に deployment 判定が無いと実行できない（先に ai_fit_analyze）。出力は叩き台 — FDE がレビュー・調整して model.tobe に格納し process_model_upsert で確定する。書き込みなし。",
       "inputSchema": {
         "type": "object",
         "properties": {
