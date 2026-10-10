@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-09T05:58:12.479Z",
+  "generatedAt": "2026-10-10T09:34:53.485Z",
   "sourceVersion": "0.1.0",
   "tools": [
     {
@@ -13,7 +13,7 @@
     },
     {
       "name": "catalog_list",
-      "description": "ペルソナ作成に使える既製ブロック（作成可能なコネクタ種類 connector_catalog / 接続済みツール 接続情報 / 部署 / 利用可能スキル / 課金カテゴリ BFC / 許可モデル / 既存ペルソナ）を org 単位で一覧する。connector_catalog = 実装済みで tool_connection_create に使える媒体種類の全量、接続情報 = この org に既に登録済みの接続インスタンス。新しいコネクタ種類は勝手に作れないため、必ず connector_catalog から選ぶ。BFC は全件を bfc_index（bfc_id + l3名）で俯瞰でき、詳細（手順 l4 込み）は bfc_search で絞り込む。",
+      "description": "ペルソナ作成に使える既製ブロック（作成可能なコネクタ種類 connector_catalog / 接続済みツール / 部署 / 利用可能スキル / 課金カテゴリ BFC / 許可モデル / 既存ペルソナ）を org 単位で一覧する。connector_catalog = 実装済みで tool_connection_create に使える媒体種類の全量、接続済みツール = この org に既に登録済みの接続インスタンス。新しいコネクタ種類は勝手に作れないため、必ず connector_catalog から選ぶ。BFC は全件を bfc_index（bfc_id + l3名）で俯瞰でき、詳細（手順 l4 込み）は bfc_search で絞り込む。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -32,7 +32,7 @@
     },
     {
       "name": "bfc_search",
-      "description": "業務ステップの記述（自然文）から BFC 候補分類をスコア順に返す。FDE 上流工程（fde-process-intake Phase 4）の bfc_id マッピング用。返る tier は S/M/L/XL の規模ラベル（org 個別 override 解決済み）で Risk Tier ではない。tha_per_unit も override 解決済みの実効値。判定はスコアを見て人間/Claude が行い、confidence=low の候補は必ず確認質問に回す。",
+      "description": "業務ステップの記述（自然文）から BFC 候補分類をスコア順に返す。FDE 上流工程（fde-process-intake Phase 4）の bfc_id マッピング用。返る tier は S/M/L/XL の規模ラベル（org 個別 override 解決済み）で Risk Tier ではない。1 件あたりの THA 消費も override 解決済みの実効値で返す。判定はスコアを見て人間/Claude が行い、confidence=low の候補は必ず確認質問に回す。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -78,7 +78,7 @@
     },
     {
       "name": "bundle_validate",
-      "description": "既存ペルソナの構成が整合しているか検証する（blueprint と ペルソナのスキル構成 の一致、trigger の有無、未 push スキル、未リンク接続、blueprint スキルの未知ツール参照、cron トリガーと cron 設定 の整合など）。エラー/警告のレポートを返す。デプロイ前の健全性チェックに使う。",
+      "description": "既存ペルソナの構成が整合しているか検証する（blueprint とペルソナのスキル構成の一致、trigger の有無、未 push スキル、未リンク接続、blueprint スキルの未知ツール参照、cron トリガーと cron 設定の整合など）。エラー/警告のレポートを返す。デプロイ前の健全性チェックに使う。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -97,7 +97,7 @@
     },
     {
       "name": "browser_placement_register",
-      "description": "有人監督ブラウザの placement（ブラウザ配置）を登録する。tool_connection を 監督ブラウザホスト 上のログイン済み warm ブラウザ（port）に紐付ける。cdp_target は caller 指定不可でサーバが host config + port から組み立て、他 org の slot 横取りは拒否する。port は 監督ブラウザホスト の初回ログイン（人間のプロビジョニング）が確定した値を渡す。confirm:true まで dry-run。",
+      "description": "有人監督ブラウザの placement（ブラウザ配置）を登録する。媒体アカウントの接続を、監督ブラウザホスト上のログイン済み warm ブラウザ（port）に紐付ける。ブラウザの接続先は呼び出し側から指定できず、サーバがホストの設定と port から組み立てる。他 org の slot 横取りは拒否する。port は監督ブラウザホストの初回ログイン（人間のプロビジョニング）が確定した値を渡す。confirm:true まで dry-run。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -109,7 +109,7 @@
           },
           "host_id": {
             "default": "host1",
-            "description": "ブラウザホスト（既知のもののみ。既定 監督ブラウザホスト）",
+            "description": "ブラウザホスト（既知のもののみ。省略で既定）",
             "type": "string"
           },
           "port": {
@@ -161,7 +161,7 @@
     },
     {
       "name": "skill_upsert",
-      "description": "⚠️ 執筆前に必ず MCP resource techhive://guides/author-skill（SKILL.md オーサリング規約）を読むこと。テナント所有スキル（persona_specific / shared）を作成・更新し、指定ペルソナに紐付ける。どちらも skills_blueprint に載る（Agent attach）。共有インフラ（adapter / system）は本ツールでは作成・更新できない（設計上の境界。修正が必要なら開発者へ issue を起票する）。cron 起動にしたい場合も種別は変えず cron 設定 に発火行を持たせる。children で子ファイル（.py/.yaml 等）も同梱でき sandbox/RPA 系を完成させられる（deploy 時に Console へ同梱 push）。agent 外で動かす場合（deployment が managed_agent 以外）は execution_contract をほぼ必須とする。更新時は旧版を履歴に残す。commit:true まで dry-run（規約 lint の warnings を返す）。",
+      "description": "⚠️ 執筆前に必ず MCP resource techhive://guides/author-skill（SKILL.md オーサリング規約）を読むこと。テナント所有スキル（persona_specific / shared）を作成・更新し、指定ペルソナに紐付ける。どちらもエージェントの搭載スキルに載る（Agent attach）。共有インフラ（adapter / system）は本ツールでは作成・更新できない（設計上の境界。修正が必要なら開発者へ issue を起票する）。cron 起動にしたい場合も種別は変えず cron 設定に発火行を持たせる。children で子ファイル（.py/.yaml 等）も同梱でき sandbox/RPA 系を完成させられる（deploy 時に Console へ同梱 push）。agent 外で動かす場合（deployment が managed_agent 以外）は execution_contract をほぼ必須とする。更新時は旧版を履歴に残す。commit:true まで dry-run（規約 lint の warnings を返す）。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -180,7 +180,7 @@
           "skill_type": {
             "type": "string",
             "enum": ["persona_specific", "shared"],
-            "description": "persona_specific / shared はいずれも Agent に attach（blueprint 搭載）。cron 起動にしたい場合も種別は変えず、cron 設定 に発火行を持たせる（cron 起動専用の種別は無い）。"
+            "description": "persona_specific / shared はいずれも Agent に attach（blueprint 搭載）。cron 起動にしたい場合も種別は変えず、cron 設定に発火行を持たせる（cron 起動専用の種別は無い）。"
           },
           "deployment": {
             "default": "managed_agent",
@@ -253,7 +253,7 @@
     },
     {
       "name": "persona_upsert",
-      "description": "⚠️ 作成前に必ず MCP resource techhive://guides/author-persona（ペルソナ作成ガイド）を読むこと。ペルソナの束（コア設定 + スキル + ツールリンク + 部署 + cron 設定）を原子的に作成・更新する。enabled は作成時 false 固定。agent_meta は mcp_servers キーのみ扱い（外部 MCP 接続用・指定時だけマージ更新）、それ以外の agent_meta/環境などデプロイ所有列は触らない。commit:true まで dry-run（検証結果のみ返す）。更新時に省略したキーは既存値を保持する（persona の各列も skills/tool_links/departments も。NULL 可の列は null でクリア、skills/tool_links/departments は [] で全解除）。schedules は冪等 upsert（未指定の既存行は削除しない）。skills の in_blueprint で Managed Agent 搭載スキルを指定（既定 true）。",
+      "description": "⚠️ 作成前に必ず MCP resource techhive://guides/author-persona（ペルソナ作成ガイド）を読むこと。ペルソナの束（コア設定 + スキル + ツールリンク + 部署 + cron 設定）を原子的に作成・更新する。enabled は作成時 false 固定。デプロイが管理する設定のうち扱うのは mcp_servers だけで（外部 MCP 接続用・指定時だけマージ更新）、それ以外（環境など）は触らない。commit:true まで dry-run（検証結果のみ返す）。更新時に省略したキーは既存値を保持する（persona の各列も skills/tool_links/departments も。NULL 可の列は null でクリア、skills/tool_links/departments は [] で全解除）。schedules は冪等 upsert（未指定の既存行は削除しない）。skills の in_blueprint で Managed Agent 搭載スキルを指定（既定 true）。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -320,7 +320,7 @@
                         }
                       },
                       "required": ["type", "schedule"],
-                      "description": "定期起動。発火には cron 設定 も必要。例: {\"type\":\"cron\",\"schedule\":\"0 23 * * 0-4\"}"
+                      "description": "定期起動。発火には cron 設定も必要。例: {\"type\":\"cron\",\"schedule\":\"0 23 * * 0-4\"}"
                     },
                     {
                       "type": "object",
@@ -439,7 +439,7 @@
                 "type": ["string", "null"]
               },
               "mcp_servers": {
-                "description": "外部 MCP サーバ(RAKUDA atlas 等)。直結は「全ツールが read-only かつ書き込み・外部作用が THA MCP を通る」場合に限る(00-vision.md 設計原則 P-4 の例外)。write 系を持つ MCP は THA MCP のカスタムツールとして実装すること。",
+                "description": "外部 MCP サーバ。直結は「全ツールが read-only かつ書き込み・外部作用が THA MCP を通る」場合に限る(00-vision.md 設計原則 P-4 の例外)。write 系を持つ MCP は THA MCP のカスタムツールとして実装すること。",
                 "type": "array",
                 "items": {
                   "type": "object",
@@ -451,15 +451,15 @@
                     "name": {
                       "type": "string",
                       "pattern": "^[a-z0-9_-]+$",
-                      "description": "MCP サーバ名。tools の mcp_toolset.mcp_server_name と対応。例: \"atlas\""
+                      "description": "MCP サーバ名。tools の mcp_toolset.mcp_server_name と対応。例: \"example-mcp\""
                     },
                     "url": {
                       "type": "string",
                       "pattern": "^https?:\\/\\/",
-                      "description": "MCP エンドポイント。例: \"https://atlas.rakuda.co/mcp\""
+                      "description": "MCP エンドポイント。例: \"https://mcp.example.com/mcp\""
                     },
                     "connection_id": {
-                      "description": "認証を解決する 接続情報.id。credentials_encrypted の token/api_key を Vault credential(static_bearer) として登録する。省略すると認証が配線されない。",
+                      "description": "認証に使う接続の id（tool_connection_create が返す id）。その接続に保存した token/api_key を Vault credential(static_bearer) として登録する。省略すると認証が配線されない。",
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
@@ -472,7 +472,7 @@
             "required": ["persona_id"]
           },
           "skills": {
-            "description": "省略で既存の紐付けと skills_blueprint を保持 / 指定すると集合置換（[] で全解除）",
+            "description": "省略で既存の紐付けと搭載スキルの構成を保持 / 指定すると集合置換（[] で全解除）",
             "type": "array",
             "items": {
               "type": "object",
@@ -570,7 +570,7 @@
     },
     {
       "name": "inspect",
-      "description": "デプロイ済みペルソナの Anthropic Managed Agent 実体を取得し、DB の skills_blueprint / version / model と突き合わせて diff を返す。実際に attach されているスキルと、稼働中のモデルを確認する（Console 非公開のため）。",
+      "description": "デプロイ済みペルソナの Anthropic Managed Agent 実体を取得し、保存済みの搭載スキル構成 / version / model と突き合わせて diff を返す。実際に attach されているスキルと、稼働中のモデルを確認する（Console 非公開のため）。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -627,7 +627,7 @@
     },
     {
       "name": "tool_connection_create",
-      "description": "コネクタ（接続情報 行）を新規登録する。認証情報（credentials）はサーバー側で暗号化して保存するため FDE 端末に秘密鍵は不要。既知 tool_id（catalog_list 参照）は必須フィールドを自動検証。新媒体（例 job-board-account）は connector_type（browser/api）を指定すれば定義なしでも登録でき、secret_keys に挙げたフィールドを暗号化する。登録後の id を persona_upsert の tool_links に渡す。commit:true まで dry-run。",
+      "description": "コネクタ（接続）を新規登録する。認証情報（credentials）はサーバー側で暗号化して保存するため FDE 端末に秘密鍵は不要。既知 tool_id（catalog_list 参照）は必須フィールドを自動検証。新媒体（例 job-board-account）は connector_type（browser/api）を指定すれば定義なしでも登録でき、secret_keys に挙げたフィールドを暗号化する。登録後の id を persona_upsert の tool_links に渡す。commit:true まで dry-run。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -889,7 +889,7 @@
     },
     {
       "name": "workflow_graph_upsert",
-      "description": "⚠️ 作図前に必ず MCP resource techhive://guides/author-workflow-graph（作図基準）を読むこと。ワークフローグラフを保存する。persona_id 指定 = ペルソナWF（ペルソナ定義.workflow_agent。どのスキルがどの順で走るか = L3 の並び）/ skill_id 指定 = スキル内フロー（スキル台帳.flow。1 スキルの内部 = L4）。Mermaid テキスト / PNG base64 / 直接 nodes+edges の 3 ソースに対応。★ 投入は source='direct' を使うこと（mermaid パーサは点線エッジ -.-> を行ごとノード化し subgraph/end も壊すが dry-run は ok を返すため気づけない）。左→右に描き、全エッジに sourceHandle='r' / targetHandle='l' と type='straight' を付け、trigger ノードの x を揃える。commit:true まで dry-run（返り値の graph を必ず目視する）。保存は全置換なので UI で人が調整した配置も上書きされる。skill_id 指定時は保存前に skill_flow_validate（F1–F6）が走るが、NG があっても保存は通る（validation に警告として必ず返る）。NG を残したフローはガードレールとして未完成なので、fixes を潰してから運用に載せること。",
+      "description": "⚠️ 作図前に必ず MCP resource techhive://guides/author-workflow-graph（作図基準）を読むこと。ワークフローグラフを保存する。persona_id 指定 = ペルソナWF（どのスキルがどの順で走るか = L3 の並び）/ skill_id 指定 = スキル内フロー（1 スキルの内部 = L4）。Mermaid テキスト / PNG base64 / 直接 nodes+edges の 3 ソースに対応。★ 投入は source='direct' を使うこと（mermaid パーサは点線エッジ -.-> を行ごとノード化し subgraph/end も壊すが dry-run は ok を返すため気づけない）。左→右に描き、全エッジに sourceHandle='r' / targetHandle='l' と type='straight' を付け、trigger ノードの x を揃える。commit:true まで dry-run（返り値の graph を必ず目視する）。保存は全置換なので UI で人が調整した配置も上書きされる。skill_id 指定時は保存前に skill_flow_validate（F1–F6）が走るが、NG があっても保存は通る（validation に警告として必ず返る）。NG を残したフローはガードレールとして未完成なので、fixes を潰してから運用に載せること。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1113,7 +1113,7 @@
     },
     {
       "name": "process_model_upsert",
-      "description": "業務モデル（PReP流・成果物中心）を R1–R11 検証つきで 業務モデル に登録する。append-only で version が自動採番（最新+1）される。既定は dry-run（commit:false）で検証レポートのみ返す。NG 違反が残っている場合は commit:true でも書き込まない。ASK 違反（質問リスト行き）は書き込み可。status は as_is（既定）→ validated → ai_fit_done → tobe_agreed の順で FDE が明示的に進める。",
+      "description": "業務モデル（PReP流・成果物中心）を R1–R11 検証つきで登録する。append-only で version が自動採番（最新+1）される。既定は dry-run（commit:false）で検証レポートのみ返す。NG 違反が残っている場合は commit:true でも書き込まない。ASK 違反（質問リスト行き）は書き込み可。status は as_is（既定）→ validated → ai_fit_done → tobe_agreed の順で FDE が明示的に進める。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1188,7 +1188,7 @@
     },
     {
       "name": "ai_fit_analyze",
-      "description": "業務モデルの AI 適用分析（Phase 4）の決定論部分を実行する。ai_fit の bfc_id から Risk Tier を lookup（BFC カタログ.default_risk_tier: 1-2=auto / 3-4=confirm / 未設定・未マッピング=confirm に倒す）し、SoT 整備 prerequisites を自動生成、PII 取扱い・HITL ゲート位置（confirm なのに milestone を生まない）を検査する。返った ai_fit を model に反映して process_model_upsert で確定する。書き込みなし。",
+      "description": "業務モデルの AI 適用分析（Phase 4）の決定論部分を実行する。ai_fit の bfc_id から Risk Tier を lookup（BFC カタログの既定 Risk Tier: 1-2=auto / 3-4=confirm / 未設定・未マッピング=confirm に倒す）し、SoT 整備 prerequisites を自動生成、PII 取扱い・HITL ゲート位置（confirm なのに milestone を生まない）を検査する。返った ai_fit を model に反映して process_model_upsert で確定する。書き込みなし。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1259,7 +1259,7 @@
     },
     {
       "name": "department_workflow_get",
-      "description": "部門ワークフロー（人間の業務フロー。/dashboard/process の表示実体 = 部署の業務フロー）を読む。department 省略で部門一覧（ワークフロー有無・更新日時つき）、指定（slug or uuid）で l2_workflows 全体と last_saved_at（upsert の楽観ロックに渡す値）を返す。",
+      "description": "部門ワークフロー（人間の業務フロー。/dashboard/process の表示実体）を読む。department 省略で部門一覧（ワークフロー有無・更新日時つき）、指定（slug or uuid）で l2_workflows 全体と last_saved_at（upsert の楽観ロックに渡す値）を返す。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1427,7 +1427,7 @@
     },
     {
       "name": "department_workflow_generate",
-      "description": "業務モデル（業務モデル）と ai_fit の bfc_id マッピングから、部門ワークフロー（/dashboard/process 形式）の叩き台を決定論導出する。bfc_id の L2 でタブをグルーピングし、process → l3std ノード（未マッピングは ext）、成果物の入力/同期関係 → エッジ、layered 自動レイアウト。出力をレビューして department_workflow_upsert（ノードグラフ直値）で保存する。書き込みなし。",
+      "description": "業務モデルと ai_fit の bfc_id マッピングから、部門ワークフロー（/dashboard/process 形式）の叩き台を決定論導出する。bfc_id の L2 でタブをグルーピングし、process → l3std ノード（未マッピングは ext）、成果物の入力/同期関係 → エッジ、layered 自動レイアウト。出力をレビューして department_workflow_upsert（ノードグラフ直値）で保存する。書き込みなし。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1895,7 +1895,7 @@
     },
     {
       "name": "skill_scaffold_from_flow",
-      "description": "スキル内フロー（スキル台帳.flow）から SKILL.md の骨格を決定論生成する。ノードの位相順が番号付きステップ、出エッジのラベルが完了条件、tool ノードが frontmatter tools:、gate ノードが HITL 節、terminal が終了条件になる。各見出しに <!-- node:id --> アンカーが入り、以後 skill_flow_validate の F6 が図と文のドリフトを検出できる。書き込みなし（レビューして skill_upsert で登録する）。",
+      "description": "スキル内フローから SKILL.md の骨格を決定論生成する。ノードの位相順が番号付きステップ、出エッジのラベルが完了条件、tool ノードが frontmatter tools:、gate ノードが HITL 節、terminal が終了条件になる。各見出しに <!-- node:id --> アンカーが入り、以後 skill_flow_validate の F6 が図と文のドリフトを検出できる。書き込みなし（レビューして skill_upsert で登録する）。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1960,7 +1960,7 @@
     },
     {
       "name": "persona_activity",
-      "description": "ペルソナの稼働状況を観測する。既定は直近セッション一覧 + 健全性サマリ（状態別件数 / 最終稼働 / エラー）+ 直近コスト + HITL 通知。session_id を渡すとそのセッションの活動ログ（アクティビティログ）と業務台帳（業務台帳）を展開する。org スコープは RLS で自動。",
+      "description": "ペルソナの稼働状況を観測する。既定は直近セッション一覧 + 健全性サマリ（状態別件数 / 最終稼働 / エラー）+ 直近コスト + HITL 通知。session_id を渡すとそのセッションの活動ログと業務台帳を展開する。org スコープは RLS で自動。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2052,7 +2052,7 @@
     },
     {
       "name": "session_diagnose",
-      "description": "業務セッションが『なぜ止まったか』を診断する。status・error・Managed Agent 実ログ・活動ログ(アクティビティログ)・業務台帳(業務台帳)・HITL 承認待ちを集約し、復旧判断（persona_session_resume / 承認待ち / 終端エラー）の材料を返す。persona_activity で session_id を特定してから使う。",
+      "description": "業務セッションが『なぜ止まったか』を診断する。status・error・Managed Agent 実ログ・活動ログ・業務台帳・HITL 承認待ちを集約し、復旧判断（persona_session_resume / 承認待ち / 終端エラー）の材料を返す。persona_activity で session_id を特定してから使う。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2073,7 +2073,7 @@
     },
     {
       "name": "read_session_logs",
-      "description": "推論分析用に、指定セッションの Managed Agents 生イベントログ(セッションログ)を取得する。担当クライアント(認証 org)のセッションに限る。record_finding の証拠収集に使う。retention 超過後は events=null。",
+      "description": "推論分析用に、指定セッションの Managed Agents 生イベントログを取得する。担当クライアント(認証 org)のセッションに限る。record_finding の証拠収集に使う。retention 超過後は events=null。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2168,7 +2168,7 @@
     },
     {
       "name": "update_finding_status",
-      "description": "改善所見(改善所見)のライフサイクルを進める。proposed → applied(スキル/プロンプト改訂を適用した) → verified(改善を後続セッションで確認した)、または dismissed(却下)。applied 時は適用した スキルの版履歴.id を任意で紐付ける。担当クライアント(認証 org)の admin として更新。",
+      "description": "改善所見のライフサイクルを進める。proposed → applied(スキル/プロンプト改訂を適用した) → verified(改善を後続セッションで確認した)、または dismissed(却下)。applied 時は適用したスキルの版（skill_versions が返す version_id）を applied_skill_version_id で任意に紐付ける。担当クライアント(認証 org)の admin として更新。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2283,7 +2283,7 @@
     },
     {
       "name": "skill_rollback",
-      "description": "自 org 所有スキルの本文を過去の版（skill_versions の version_number）に戻す（要承認）。戻す前に現行を新版としてスナップショットするので、戻し自体も巻き戻せる。needs_redeploy が立つので反映には deploy が必要。confirm:true まで差分プレビューのみ。",
+      "description": "自 org 所有スキルの本文を過去の版（skill_versions の version_number）に戻す（要承認）。戻す前に現行を新版としてスナップショットするので、戻し自体も巻き戻せる。再デプロイ待ちになるので反映には deploy が必要。confirm:true まで差分プレビューのみ。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2333,7 +2333,7 @@
     },
     {
       "name": "skill_detach",
-      "description": "1 ペルソナからスキルを外す（スキル本体は残す・要承認）。ペルソナのスキル構成 を外し blueprint からも除去（再 deploy で Agent に反映）。confirm:true まで影響レポートのみ。",
+      "description": "1 ペルソナからスキルを外す（スキル本体は残す・要承認）。ペルソナとの紐付けを外し blueprint からも除去（再 deploy で Agent に反映）。confirm:true まで影響レポートのみ。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2387,7 +2387,7 @@
     },
     {
       "name": "persona_delete",
-      "description": "ペルソナを論理削除する（破壊的・要承認）。本体は残したまま無効化(deleted_at + enabled=false)し、スキル/ツール/部署/cron リンク + このペルソナ専用スキル + Managed Agent を削除。共有スキルは温存。物理削除はできない（運営限定）。confirm:true を渡すまでは影響レポートのみ（必ず内容を人間に提示して承認を得てから confirm:true で実行）。",
+      "description": "ペルソナを論理削除する（破壊的・要承認）。本体は残したまま無効化(削除済みの印 + enabled=false)し、スキル/ツール/部署/cron リンク + このペルソナ専用スキル + Managed Agent を削除。共有スキルは温存。物理削除はできない（運営限定）。confirm:true を渡すまでは影響レポートのみ（必ず内容を人間に提示して承認を得てから confirm:true で実行）。",
       "inputSchema": {
         "type": "object",
         "properties": {
